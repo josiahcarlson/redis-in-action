@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="redis-in-action" default="usage" basedir=".">
+
+  <defaultexcludes add="**/*.swp"/>
+
+  <path id="classpath">
+    <fileset dir="lib" includes="*.jar"/>
+    <pathelement path="build/classes"/>
+  </path>
+
+  <target name="usage" description="Displays a usage info.">
+    <echo>
+      Usage: $ ant &lt;chapter&gt;
+         Ex: $ ant ch01
+    </echo>
+  </target>
+
+  <target name="clean"
+      description="Delete the build directory containing compiled java classes">
+    <delete dir="build"/>
+  </target>
+
+  <target name="chapter">
+    <mkdir dir="build/classes"/>
+    <javac destdir="build/classes" debug="on" includeantruntime="false">
+      <src path="src"/>
+      <classpath refid="classpath"/>
+    </javac>
+    <java classname="Chapter${chapter}" fork="true" failonerror="true">
+      <assertions>
+        <enable package="..."/>
+      </assertions>
+      <classpath refid="classpath"/>
+    </java>
+  </target>
+
+  <target name="ch01" description="Chapter 1">
+    <antcall target="chapter"> <param name="chapter" value="01"/> </antcall>
+  </target>
+  <target name="ch02" description="Chapter 2">
+    <antcall target="chapter"> <param name="chapter" value="02"/> </antcall>
+  </target>
+  <target name="ch03" description="Chapter 3">
+    <antcall target="chapter"> <param name="chapter" value="03"/> </antcall>
+  </target>
+  <target name="ch04" description="Chapter 4">
+    <antcall target="chapter"> <param name="chapter" value="04"/> </antcall>
+  </target>
+  <target name="ch05" description="Chapter 5">
+    <antcall target="chapter"> <param name="chapter" value="05"/> </antcall>
+  </target>
+  <target name="ch06" description="Chapter 6">
+    <antcall target="chapter"> <param name="chapter" value="06"/> </antcall>
+  </target>
+  <target name="ch07" description="Chapter 7">
+    <antcall target="chapter"> <param name="chapter" value="07"/> </antcall>
+  </target>
+  <target name="ch08" description="Chapter 8">
+    <antcall target="chapter"> <param name="chapter" value="08"/> </antcall>
+  </target>
+  <target name="ch09" description="Chapter 9">
+    <antcall target="chapter"> <param name="chapter" value="09"/> </antcall>
+  </target>
+  <target name="ch10" description="Chapter 10">
+    <antcall target="chapter"> <param name="chapter" value="10"/> </antcall>
+  </target>
+  <target name="ch11" description="Chapter 11">
+    <antcall target="chapter"> <param name="chapter" value="11"/> </antcall>
+  </target>
+
+</project>
