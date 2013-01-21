@@ -14,6 +14,7 @@ import java.util.TimeZone;
 import java.util.UUID;
 
 import org.apache.commons.csv.CSVParser;
+import org.javatuples.Pair;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -108,10 +109,10 @@ public class Chapter05 {
             updateCounter(conn, "test", count, now + i);
         }
 
-        List<Count> counter = getCounter(conn, "test", 1);
+        List<Pair<Integer,Integer>> counter = getCounter(conn, "test", 1);
         System.out.println("We have some per-second counters: " + counter.size());
         System.out.println("These counters include:");
-        for (Count count : counter){
+        for (Pair<Integer,Integer> count : counter){
             System.out.println("  " + count);
         }
         assert counter.size() >= 10;
@@ -119,7 +120,7 @@ public class Chapter05 {
         counter = getCounter(conn, "test", 5);
         System.out.println("We have some per-5-second counters: " + counter.size());
         System.out.println("These counters include:");
-        for (Count count : counter){
+        for (Pair<Integer,Integer> count : counter){
             System.out.println("  " + count);
         }
         assert counter.size() >= 2;
@@ -305,12 +306,15 @@ public class Chapter05 {
         trans.exec();
     }
 
-    public List<Count> getCounter(Jedis conn, String name, int precision) {
+    public List<Pair<Integer,Integer>> getCounter(
+        Jedis conn, String name, int precision)
+    {
         String hash = String.valueOf(precision) + ':' + name;
         Map<String,String> data = conn.hgetAll("count:" + hash);
-        ArrayList<Count> results = new ArrayList<Count>();
+        ArrayList<Pair<Integer,Integer>> results =
+            new ArrayList<Pair<Integer,Integer>>();
         for (Map.Entry<String,String> entry : data.entrySet()) {
-            results.add(new Count(
+            results.add(new Pair<Integer,Integer>(
                         Integer.parseInt(entry.getKey()),
                         Integer.parseInt(entry.getValue())));
         }
@@ -538,29 +542,6 @@ public class Chapter05 {
         String cityId = results.iterator().next();
         cityId = cityId.substring(0, cityId.indexOf('_'));
         return new Gson().fromJson(conn.hget("cityid2city:", cityId), String[].class);
-    }
-
-    public class Count
-        implements Comparable<Count>
-    {
-        public int key;
-        public int value;
-
-        public Count(int key, int value) {
-            this.key = key;
-            this.value = value;
-        }
-
-        public int compareTo(Count other){
-            if (key != other.key){
-                return key - other.key;
-            }
-            return value - other.value;
-        }
-
-        public String toString() {
-            return key + ": " + value;
-        }
     }
 
     public class CleanCountersThread
