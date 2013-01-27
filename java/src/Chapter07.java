@@ -587,7 +587,7 @@ public class Chapter07 {
     }
 
     public long stringToScoreGeneric(String string, Map<Integer,Integer> mapping) {
-        int length = (int)(52 / (Math.log(mapping.size() / Math.log(2))));
+        int length = (int)(52 / (Math.log(mapping.size()) / Math.log(2)));
 
         List<Integer> pieces = new ArrayList<Integer>();
         for (int i = 0; i < Math.min(string.length(), length); i++) {
