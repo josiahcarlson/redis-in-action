@@ -589,7 +589,7 @@ public class Chapter05 {
                         ((System.currentTimeMillis() + timeOffset) / 1000) - sampleCount * prec);
                     ArrayList<String> samples = new ArrayList<String>(conn.hkeys(hkey));
                     Collections.sort(samples);
-                    int remove = bisect(samples, cutoff);
+                    int remove = bisectRight(samples, cutoff);
 
                     if (remove != 0){
                         conn.hdel(hkey, samples.subList(0, remove).toArray(new String[0]));
@@ -619,7 +619,7 @@ public class Chapter05 {
         }
 
         // mimic python's bisect.bisect_right
-        public int bisect(List<String> values, String key) {
+        public int bisectRight(List<String> values, String key) {
             int index = Collections.binarySearch(values, key);
             return index < 0 ? Math.abs(index) - 1 : index + 1;
         }
