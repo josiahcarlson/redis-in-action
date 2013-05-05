@@ -1,4 +1,3 @@
-
 import os
 import time
 import unittest
@@ -52,6 +51,7 @@ def process_logs(conn, path, callback):                     #K
             current_offset = 0
 
         current_file = None
+        current_offset = int(current_offset)
 
         for lno, line in enumerate(inp):                    #L
             callback(pipe, line)                            #E
