@@ -126,7 +126,7 @@ public class Chapter04 {
             Jedis conn, String buyerId, String itemId, String sellerId, double lprice) {
 
         String buyer = "users:" + buyerId;
-        String seller = "users:%s" + sellerId;
+        String seller = "users:" + sellerId;
         String item = itemId + '.' + sellerId;
         String inventory = "inventory:" + buyerId;
         long end = System.currentTimeMillis() + 10000;
