@@ -29,7 +29,7 @@ dir ./                              #C
 
 # <start id="process-logs-progress"/>
 def process_logs(conn, path, callback):                     #K
-    current_file, current_offset = conn.mget(               #A
+    current_file, offset = conn.mget(                       #A
         'progress:file', 'progress:position')               #A
 
     pipe = conn.pipeline()
@@ -37,7 +37,7 @@ def process_logs(conn, path, callback):                     #K
     def update_progress():                                  #H
         pipe.mset({                                         #I
             'progress:file': fname,                         #I
-            'progress:position': current_offset             #I
+            'progress:position': offset                     #I
         })
         pipe.execute()                                      #J
 
@@ -47,15 +47,15 @@ def process_logs(conn, path, callback):                     #K
 
         inp = open(os.path.join(path, fname), 'rb')
         if fname == current_file:                           #D
-            inp.seek(int(current_offset, 10))               #D
+            inp.seek(int(offset, 10))                       #D
         else:
-            current_offset = 0
+            offset = 0
 
         current_file = None
 
         for lno, line in enumerate(inp):                    #L
             callback(pipe, line)                            #E
-            current_offset += len(line)                     #F
+            offset += int(offset) + len(line)               #F
 
             if not (lno+1) % 1000:                          #G
                 update_progress()                           #G
