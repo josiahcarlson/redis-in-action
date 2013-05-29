@@ -607,8 +607,8 @@ def leave_chat(conn, chat_id, user):
 aggregates = defaultdict(lambda: defaultdict(int))      #A
 
 def daily_country_aggregate(conn, line):
-    line = line.split()
     if line:
+        line = line.split()
         ip = line[0]                                    #B
         day = line[1]                                   #B
         country = find_city_by_ip_local(ip)[2]          #C
