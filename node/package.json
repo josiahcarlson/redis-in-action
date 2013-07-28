@@ -1,0 +1,29 @@
+{
+  "name": "redis-in-action-node",
+  "version": "0.0.1",
+  "description": "Redis in Action (Node.js sample code)",
+  "main": "run-mocha-tests.js",
+  "scripts": {
+    "test": "./run-mocha-tests.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/danielsundman/redis-in-action"
+  },
+  "keywords": [
+    "redis",
+    "node"
+  ],
+  "author": "",
+  "license": "BSD",
+  "bugs": {
+    "url": "https://github.com/danielsundman/redis-in-action/issues"
+  },
+  "dependencies": {
+    "redis": "~0.8.4"
+  },
+  "devDependencies": {
+    "mocha": "~1.12.0",
+    "should": "~1.2.2"
+  }
+}
