@@ -1,5 +1,4 @@
-var redis = require('redis'),
-	ONE_WEEK_IN_SECONDS = 7 * 24 * 60 * 60,
+var ONE_WEEK_IN_SECONDS = 7 * 24 * 60 * 60,
 	VOTE_SCORE = 432;
 
 var today = todayOrig = function() {
