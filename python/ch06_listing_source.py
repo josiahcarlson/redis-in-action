@@ -179,7 +179,7 @@ def purchase_item_with_lock(conn, buyerid, itemid, sellerid):
     inventory = "inventory:%s"%buyerid
     end = time.time() + 30
 
-    locked = acquire_lock(conn, market)                #A
+    locked = acquire_lock(conn, market)                         #A
     if not locked:
         return False
 
@@ -188,23 +188,24 @@ def purchase_item_with_lock(conn, buyerid, itemid, sellerid):
         while time.time() < end:
             try:
                 pipe.watch(buyer)
-                pipe.zscore("market:", item)           #B
-                pipe.hget(buyer, 'funds')              #B
-                price, funds = pipe.execute()          #B
-                if price is None or price > funds:     #B
-                    pipe.unwatch()                     #B
-                    return None                        #B
+                pipe.multi()
+                pipe.zscore("market:", item)                    #B
+                pipe.hget(buyer, 'funds')                       #B
+                price, funds = pipe.execute()                   #B
+                if price is None or price > funds:              #B
+                    pipe.unwatch()                              #B
+                    return None                                 #B
 
-                pipe.hincrby(seller, int(price))       #C
-                pipe.hincrby(buyerid, int(-price))     #C
-                pipe.sadd(inventory, itemid)           #C
-                pipe.zrem("market:", item)             #C
-                pipe.execute()                         #C
+                pipe.hincrby(seller, "funds", int(price))       #C
+                pipe.hincrby(buyerid, "funds", int(-price))     #C
+                pipe.sadd(inventory, itemid)                    #C
+                pipe.zrem("market:", item)                      #C
+                pipe.execute()                                  #C
                 return True
             except redis.exceptions.WatchError:
                 pass
     finally:
-        release_lock(conn, market, locked)             #D
+        release_lock(conn, market, locked)                      #D
 # <end id="_1314_14473_8645"/>
 #A Get the lock
 #B Check for a sold item or insufficient funds
