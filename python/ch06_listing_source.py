@@ -187,7 +187,6 @@ def purchase_item_with_lock(conn, buyerid, itemid, sellerid):
     try:
         while time.time() < end:
             try:
-                pipe.watch(buyer)
                 pipe.zscore("market:", item)           #B
                 pipe.hget(buyer, 'funds')              #B
                 price, funds = pipe.execute()          #B
@@ -195,11 +194,11 @@ def purchase_item_with_lock(conn, buyerid, itemid, sellerid):
                     pipe.unwatch()                     #B
                     return None                        #B
 
-                pipe.hincrby(seller, int(price))       #C
-                pipe.hincrby(buyerid, int(-price))     #C
-                pipe.sadd(inventory, itemid)           #C
-                pipe.zrem("market:", item)             #C
-                pipe.execute()                         #C
+                pipe.hincrby(seller, 'funds', int(price))      #C
+                pipe.hincrby(buyerid, 'funds', int(-price))    #C
+                pipe.sadd(inventory, itemid)                   #C
+                pipe.zrem("market:", item)                     #C
+                pipe.execute()                                 #C
                 return True
             except redis.exceptions.WatchError:
                 pass
