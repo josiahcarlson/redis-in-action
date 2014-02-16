@@ -194,7 +194,7 @@ def purchase_item_with_lock(conn, buyerid, itemid, sellerid):
                     pipe.unwatch()                     #B
                     return None                        #B
 
-                pipe.hincrby(seller, 'funds', int(price))      #C
+                pipe.hincrby(sellerid, 'funds', int(price))    #C
                 pipe.hincrby(buyerid, 'funds', int(-price))    #C
                 pipe.sadd(inventory, itemid)                   #C
                 pipe.zrem("market:", item)                     #C
