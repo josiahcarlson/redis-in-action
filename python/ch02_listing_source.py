@@ -171,7 +171,7 @@ def update_token(conn, token, user, item=None):
 # <start id="_1311_14471_8288"/>
 def rescale_viewed(conn):
     while not QUIT:
-        conn.zremrangebyrank('viewed:', 20000, -1)      #A
+        conn.zremrangebyrank('viewed:', 0, -20001)      #A
         conn.zinterstore('viewed:', {'viewed:': .5})    #B
         time.sleep(300)                                 #C
 # <end id="_1311_14471_8288"/>
