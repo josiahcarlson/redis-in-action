@@ -812,7 +812,7 @@ def TrackFilter(list_of_strings):
 
 # <start id="follow-filter"/>
 def FollowFilter(names):
-    names = set()                                   #A
+    nset = set()                                    #A
     for name in names:                              #B
         names.add('@' + name.lower().lstrip('@'))   #B
 
@@ -820,7 +820,7 @@ def FollowFilter(names):
         message_words = set(status['message'].lower().split())  #C
         message_words.add('@' + status['login'].lower())        #C
 
-        return message_words & names                            #D
+        return message_words & nset                             #D
     return check
 # <end id="follow-filter"/>
 #A We are going to try to match login names against posters and messages
