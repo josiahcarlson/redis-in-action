@@ -814,7 +814,7 @@ def TrackFilter(list_of_strings):
 def FollowFilter(names):
     nset = set()                                    #A
     for name in names:                              #B
-        names.add('@' + name.lower().lstrip('@'))   #B
+        nset.add('@' + name.lower().lstrip('@'))    #B
 
     def check(status):
         message_words = set(status['message'].lower().split())  #C
