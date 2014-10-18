@@ -164,6 +164,6 @@ function updateTokenPipeline(c, token, user, item, p) {
       zremrangebyrank(p,"viewed:"token, 0, -26)
       zincrby(p,"viewed:", -1, item)
     }
-    for(ERRNO="" ; ERRNO="" ; var=getReply(p,REPLY)) ;
-    ERRNO==""
+    for(ERRNO="" ; ERRNO=="" ; getReply(p,REPLY)) 
+      ;
 }
