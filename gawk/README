@@ -1,14 +1,10 @@
-To run the code in this folder you need have built into your system gawk and gawkextlib.
+To run the gawk version, you must have gawk and gawkextlib.
 
-For this task you can deal directly:
-
+To get gawkextlib, you can:
 git clone git://git.code.sf.net/u/paulinohuerta/gawkextlib u-paulinohuerta-gawkextlib
 
-The README file will indicate all necessary steps to build redis extension for your command gawk.
+The README file in that repository will explain how to build the Redis extensions for gawk.
 
-Once done and verified that the extension works, (you can find examples of code in the file
-README.md):
-
-  then, you can run the code from Chapter One
+To run the code from chapter 1 (after your Redis client is properly installed):
 
   $ /path-to-gawk/gawk -f ch01.awk /dev/null 
