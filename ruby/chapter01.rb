@@ -1,2 +1,2 @@
-def article_vote
+def article_vote(client)
 end
