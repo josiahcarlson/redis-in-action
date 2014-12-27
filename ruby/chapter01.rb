@@ -1,4 +1,5 @@
 ONE_WEEK_IN_SECONDS = 7 * 86400
+VOTE_SCORE = 432
 
 def article_vote(client)
 end
@@ -23,4 +24,9 @@ def post_article(client, user, title, link)
       votes:  1,
     }
   )
+
+  client.zadd('score:', now + VOTE_SCORE, article)
+  client.zadd('time:', now, article)
+
+  article_id
 end
