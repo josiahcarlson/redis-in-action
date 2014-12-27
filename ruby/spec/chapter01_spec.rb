@@ -1,4 +1,4 @@
-require 'redis'
+require 'spec_helper'
 require './chapter01'
 
 describe 'chapter01' do
