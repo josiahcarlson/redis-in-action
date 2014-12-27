@@ -5,7 +5,7 @@ describe 'chapter01' do
   let(:client) { Redis.new }
 
   before do
-    client.flushall
+    client.flushdb
   end
 
   describe 'article' do
