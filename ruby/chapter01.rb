@@ -1,5 +1,6 @@
 ONE_WEEK_IN_SECONDS = 7 * 86400
-VOTE_SCORE = 432
+VOTE_SCORE          = 432
+ARTICLES_PER_PAGE   = 25
 
 def article_vote(client, user, article)
   cutoff = Time.now.to_i - ONE_WEEK_IN_SECONDS
@@ -38,4 +39,13 @@ def post_article(client, user, title, link)
   client.zadd('time:', now, article)
 
   article_id
+end
+
+def get_articles(client, page, order = 'score:')
+  start = (page - 1) * ARTICLES_PER_PAGE
+  ids   = client.zrevrange(order, start, start + ARTICLES_PER_PAGE - 1)
+
+  ids.inject([]) { |articles, id|
+    articles << client.hgetall(id).merge(id: id)
+  }
 end

@@ -9,7 +9,7 @@ describe 'chapter01' do
   end
 
   describe 'article' do
-    it 'is available to be posted, voted, ..' do
+    it 'is available to be posted, voted, gotten, ..' do
       article_id = post_article(client, 'username', 'A title', 'http://www.google.com')
       puts "We posted a new article with id: #{article_id}"
       expect(article_id).to be_truthy
@@ -20,9 +20,15 @@ describe 'chapter01' do
       expect(hash).to be_truthy
 
       article_vote(client, 'other_user', "article:#{article_id}")
+      puts "We voted for the article, it now has votes:"
       votes = client.hget("article:#{article_id}", 'votes').to_i
-      puts "We voted for the article, it now has votes: #{votes}"
+      puts votes
       expect(votes > 1).to be_truthy
+
+      puts "The currently highest-scoring articles are:"
+      articles = get_articles(client, 1)
+      puts articles
+      expect(articles.count >= 1).to be_truthy
     end
   end
 
