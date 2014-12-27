@@ -17,6 +17,10 @@ describe 'chapter01' do
     let(:title) { 'A title' }
     let(:link) { 'http://www.google.com' }
 
-    it { expect(post_article(client, user, title, link)).to eq 1 }
+    it 'creates article with 5 attributes' do
+      expect {
+        post_article(client, user, title, link)
+      }.to change { client.hlen('article:1') }.by(5)
+    end
   end
 end
