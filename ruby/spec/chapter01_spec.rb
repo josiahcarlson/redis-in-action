@@ -8,11 +8,25 @@ describe 'chapter01' do
     client.flushall
   end
 
-  describe '#article_vote' do
-    it { expect(article_vote(client)).to be_nil }
+  describe 'article' do
+    it 'is available to be posted, voted, ..' do
+      article_id = post_article(client, 'username', 'A title', 'http://www.google.com')
+      puts "We posted a new article with id: #{article_id}"
+      expect(article_id).to be_truthy
+
+      puts "Its HASH looks like:"
+      article = client.hgetall("article:#{article_id}")
+      puts article
+      expect(hash).to be_truthy
+
+      article_vote(client, 'other_user', "article:#{article_id}")
+      votes = client.hget("article:#{article_id}", 'votes').to_i
+      puts "We voted for the article, it now has votes: #{votes}"
+      expect(votes > 1).to be_truthy
+    end
   end
 
-  describe '#post_article' do
+  describe 'post_article' do
     let(:user) { 'username' }
     let(:title) { 'A title' }
     let(:link) { 'http://www.google.com' }

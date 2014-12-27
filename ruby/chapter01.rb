@@ -1,7 +1,16 @@
 ONE_WEEK_IN_SECONDS = 7 * 86400
 VOTE_SCORE = 432
 
-def article_vote(client)
+def article_vote(client, user, article)
+  cutoff = Time.now.to_i - ONE_WEEK_IN_SECONDS
+  return if client.zscore('time:', article) < cutoff
+
+  article_id = article.split(':')[-1]
+
+  if client.sadd("voted:#{article_id}", user)
+    client.zincrby('score:', VOTE_SCORE, article)
+    client.hincrby(article, 'votes', 1)
+  end
 end
 
 def post_article(client, user, title, link)
