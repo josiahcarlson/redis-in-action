@@ -49,3 +49,26 @@ def get_articles(client, page, order = 'score:')
     articles << client.hgetall(id).merge(id: id)
   }
 end
+
+def add_remove_groups(client, article_id, to_add = [], to_remove = [])
+  article = "article:#{article_id}"
+
+  to_add.each do |group|
+    client.sadd("group:#{group}", article)
+  end
+
+  to_remove.each do |group|
+    client.srem("group:#{group}", article)
+  end
+end
+
+def get_group_articles(client, group, page, order = 'score:')
+  key = order + group
+
+  unless client.exists(key)
+    client.zinterstore(key, ["group:#{group}", order], aggregate: 'max')
+    client.expire(key, 60)
+  end
+
+  get_articles(client, page, key)
+end
