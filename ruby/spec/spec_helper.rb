@@ -1,1 +1,2 @@
+require 'pry'
 require 'redis'
