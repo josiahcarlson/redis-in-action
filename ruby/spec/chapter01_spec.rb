@@ -2,7 +2,7 @@ require 'spec_helper'
 require './chapter01'
 
 describe 'Chapter 1' do
-  let(:client) { Redis.new }
+  let(:client) { Redis.new(db: 15) }
 
   before do
     client.flushdb
