@@ -1,0 +1,2 @@
+require 'pry'
+require 'redis'
