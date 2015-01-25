@@ -1,29 +1,14 @@
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import org.apache.commons.csv.CSVParser;
+import org.javatuples.Pair;
+import redis.clients.jedis.*;
+
 import java.io.File;
 import java.io.FileReader;
 import java.text.Collator;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TimeZone;
-import java.util.UUID;
-
-import org.apache.commons.csv.CSVParser;
-import org.javatuples.Pair;
-
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.Pipeline;
-import redis.clients.jedis.Transaction;
-import redis.clients.jedis.Tuple;
-import redis.clients.jedis.ZParams;
+import java.util.*;
 
 public class Chapter05 {
     public static final String DEBUG = "debug";

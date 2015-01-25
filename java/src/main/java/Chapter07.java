@@ -1,24 +1,9 @@
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import org.javatuples.Pair;
+import redis.clients.jedis.*;
+
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import org.javatuples.Pair;
-
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.SortingParams;
-import redis.clients.jedis.Transaction;
-import redis.clients.jedis.Tuple;
-import redis.clients.jedis.ZParams;
 
 public class Chapter07 {
     private static final Pattern QUERY_RE = Pattern.compile("[+-]?[a-z']{2,}");

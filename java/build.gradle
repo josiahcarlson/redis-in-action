@@ -1,0 +1,27 @@
+apply plugin: 'java'
+apply plugin: 'application'
+
+version = '1.1'
+
+repositories {
+    mavenCentral()
+
+    flatDir {
+        dirs 'libs'
+    }
+}
+
+dependencies {
+
+    compile 'redis.clients:jedis:2.1.0'
+    compile 'org.javatuples:javatuples:1.2'
+    compile 'com.google.code.gson:gson:2.2.2'
+
+    compile name: 'commons-csv-20070730'
+
+}
+
+//set the main class from the command line property 'mainClass' (e.g. gradle -PmainClass=Chapter02)
+def chapterPrefix = 'Chapter0'
+def defaultChapter = '1'
+mainClassName = chapterPrefix + (project.hasProperty('chapter') ? chapter  : defaultChapter)

@@ -1,16 +1,10 @@
-import java.net.MalformedURLException;
-import java.net.URL;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-
 import com.google.gson.Gson;
-
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Tuple;
+
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.*;
 
 public class Chapter02 {
     public static final void main(String[] args)
