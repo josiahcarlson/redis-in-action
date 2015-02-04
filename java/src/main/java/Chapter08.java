@@ -1,16 +1,10 @@
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.Transaction;
 import redis.clients.jedis.Tuple;
+
+import java.lang.reflect.Method;
+import java.util.*;
 
 public class Chapter08 {
     private static int HOME_TIMELINE_SIZE = 1000;

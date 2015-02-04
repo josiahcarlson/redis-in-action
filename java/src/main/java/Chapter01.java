@@ -1,11 +1,7 @@
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.ZParams;
+
+import java.util.*;
 
 public class Chapter01 {
     private static final int ONE_WEEK_IN_SECONDS = 7 * 86400;
