@@ -227,6 +227,13 @@ class TestCh02(unittest.TestCase):
         self.conn = redis.Redis(db=15)
 
     def tearDown(self):
+        conn = self.conn
+        to_del = (
+            conn.keys('login:*') + conn.keys('recent:*') + conn.keys('viewed:*') +
+            conn.keys('cart:*') + conn.keys('cache:*') + conn.keys('delay:*') + 
+            conn.keys('schedule:*') + conn.keys('inv:*'))
+        if to_del:
+            self.conn.delete(*to_del)
         del self.conn
         global QUIT, LIMIT
         QUIT = False

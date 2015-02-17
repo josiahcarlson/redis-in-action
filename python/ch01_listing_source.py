@@ -284,7 +284,7 @@ class TestCh01(unittest.TestCase):
 
         article_vote(conn, 'other_user', 'article:' + article_id)
         print "We voted for the article, it now has votes:",
-        v = conn.hget('article:' + article_id, 'votes')
+        v = int(conn.hget('article:' + article_id, 'votes'))
         print v
         print
         self.assertTrue(v > 1)
@@ -302,6 +302,13 @@ class TestCh01(unittest.TestCase):
         pprint.pprint(articles)
         print
         self.assertTrue(len(articles) >= 1)
+
+        to_del = (
+            conn.keys('time:*') + conn.keys('voted:*') + conn.keys('score:*') + 
+            conn.keys('article:*') + conn.keys('group:*')
+        )
+        if to_del:
+            conn.delete(*to_del)
 
 if __name__ == '__main__':
     unittest.main()

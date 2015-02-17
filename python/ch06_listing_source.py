@@ -811,6 +811,7 @@ class TestCh06(unittest.TestCase):
         self.conn = redis.Redis(db=15)
 
     def tearDown(self):
+        self.conn.flushdb()
         del self.conn
         print
         print
