@@ -108,6 +108,7 @@ def create_user(conn, login, name):
         return None                         #B
 
     if conn.hget('users:', llogin):         #C
+        release_lock(conn, 'user:' + llogin, lock)  #C
         return None                         #C
 
     id = conn.incr('user:id:')              #D
@@ -493,6 +494,7 @@ def delete_status(conn, uid, status_id):
         return None             #B
 
     if conn.hget(key, 'uid') != str(uid):   #C
+        release_lock(conn, key, lock)       #C
         return None                         #C
 
     pipeline = conn.pipeline(True)
@@ -694,6 +696,7 @@ def delete_status(conn, uid, status_id):
         return None
 
     if conn.hget(key, 'uid') != str(uid):
+        release_lock(conn, key, lock)
         return None
 
     pipeline = conn.pipeline(True)
