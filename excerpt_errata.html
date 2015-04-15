@@ -1,0 +1,288 @@
+<html>
+    <head>
+        <title>Errata for Redis in Action</title>
+        <style type="text/css">
+            body {background-color: #ccc;}
+            #body {
+                margin-left: auto;
+                margin-right: auto;
+                width: 800px;
+                border: 1px solid #444;
+                background-color: #eee;
+                padding: 10px;
+            }
+            h2 {
+                margin-left: 10px;
+                border-top: 1px solid #444;
+            }
+            h3,h4 {margin-left: 20px;}
+            p {margin-left: 30px;}
+            blockquote {margin-left: 60px;}
+        </style>
+    </head>
+    <body>
+        <div id="body">
+            <strong>For the most up-to-date version of this errata, visit...</strong>
+            <h1>Errata for Redis in Action</h1>
+            <ul>
+                <li>2015/04/13 - Chapter 8, Section 8.5.3, Page 201-202, Listing 8.14</li>
+                <li>2015/04/13 - Chapter 8, Section 8.4, Page 194, Listing 8.8</li>
+                <li>2015/04/13 - Chapter 8, Section 8.3, Page 191-192, Listing 8.5</li>
+                <li>2015/04/13 - Chapter 8, Section 8.3, Page 190-191, Listing 8.4</li>
+                <li>2015/04/13 - Chapter 8, Section 8.1.1, Page 187, Listing 8.1</li>
+                <li>2015/04/10 - Chapter 6, Section 6.5.2, Page 145, Listing 6.28</li>
+                <li>2014/07/30 - Chapter 8, Section 8.5.3, Page 205, Listing 8.19</li>
+                <li>2014/05/04 - Chapter 2, Section 2.5, Page 35, Listing 2.10</li>
+                <li>2014/02/16 - Chapter 6, Section 6.2.3, Page 121, Listing 6.9</li>
+                <li>2013/08/24 - Chapter 6, Section 6.2.3, Page 121, Listing 6.9</li>
+            </ul>
+
+            <h2>Chapter 2</h2>
+            <h3>Section 2.5, Page 35, Listing 2.10 (2014/05/04)</h3>
+            <p>There is a code bug on the third line of the <tt>rescale_viewed()</tt> function definition.</p>
+            <p>The full function definition reads:</p>
+            <blockquote>
+<pre>def rescale_viewed(conn):
+    while not QUIT:
+        conn.zremrangebyrank('viewed:', 20000, -1)
+        conn.zinterstore('viewed:', {'viewed:': .5})
+        time.sleep(300)</pre>
+            </blockquote>
+
+            <p>The third line, updated inline, should read:</p>
+            <blockquote>
+<pre>def rescale_viewed(conn):
+    while not QUIT:
+        conn.zremrangebyrank('viewed:', 0, -20001)
+        conn.zinterstore('viewed:', {'viewed:': .5})
+        time.sleep(300)</pre>
+            </blockquote>
+            
+            <p>You can see the updated code in-context by visiting: <a href="http://goo.gl/O6bvZw">http://goo.gl/O6bvZw</a></p>
+
+
+            <h2>Chapter 6</h2>
+            <h3>Section 6.2.3, Page 121, Listing 6.9 (2013/08/24, 2014/02/16)</h3>
+            <p>There is one printing errata (wrong in the printed version, correct in the source code), and two other code bugs in this listing for <tt>purchase_item_with_lock()</tt>.</p>
+            <p>Printing errata: there are two lines that read:</p>
+            <blockquote>
+<pre>locked = acquire_lock(conn, market)
+    return False</pre>
+            </blockquote>
+
+            <p>There is a missing line between those two lines, which should read:</p>
+            <blockquote>
+<pre>locked = acquire_lock(conn, market)
+if not locked:
+    return False</pre>
+            </blockquote>
+
+            <p>You can see the code in-context by visiting: <a href="http://goo.gl/QpcbuC">http://goo.gl/QpcbuC</a></p>
+            <p>Code bug: there is an extra <tt>pipe.watch(buyer)</tt> call that is unnecessary, which can be removed. The lines that read:</p>
+            <blockquote>
+<pre>try:
+    pipe.watch(buyer)
+    pipe.zscore("market:", item)
+    pipe.hget(buyer, 'funds')</pre>
+            </blockquote>
+
+            <p>Should instead read:</p>
+            <blockquote>
+<pre>try:
+    pipe.zscore("market:", item)
+    pipe.hget(buyer, 'funds')</pre>
+            </blockquote>
+
+            <p>You can see the code in-context by visiting: <a href="http://goo.gl/M1MkVe">http://goo.gl/M1MkVe</a></p>
+            <p>Further, there are missing <tt>'funds'</tt> arguments to the <tt>pipe.hincrby()</tt> calls later, *and* a misnamed argument. The lines that read:</p>
+            <blockquote>
+<pre>pipe.hincrby(seller, int(price))
+pipe.hincrby(buyerid, int(-price))</pre>
+            </blockquote>
+
+            <p>Should instead read:</p>
+            <blockquote>
+<pre>pipe.hincrby(seller, 'funds', int(price))
+pipe.hincrby(buyer, 'funds', int(-price))</pre>
+            </blockquote>
+
+            <p>Note the addition of the <tt>'funds'</tt> arguments and the renaming of the <tt>buyerid</tt> argument to <tt>buyer</tt>.</p>
+            <p>You can see the code in-context by visiting: <a href="http://goo.gl/jeRYSq">http://goo.gl/jeRYSq</a></p>
+
+
+            <h3>Section 6.5.2, Page 145, Listing 6.28 (2015/04/10)</h3>
+            <p>There is a code bug on the last line of the <tt>leave_chat()</tt> function, where the <tt>oldest</tt> argument to the <tt>conn.zremrangebyscore()</tt> call should really be <tt>oldest[0][1]</tt>. The lines that read:</p>
+            <blockquote>
+<pre>        'chat:' + chat_id, 0, 0, withscores=True)
+        conn.zremrangebyscore('chat:' + chat_id, 0, oldest)</pre>
+            </blockquote>
+
+            <p>Should instead read:</p>
+            <blockquote>
+<pre>        'chat:' + chat_id, 0, 0, withscores=True)
+        conn.zremrangebyscore('chat:' + chat_id, 0, oldest[0][1])</pre>
+            </blockquote>
+
+            <p>You can see the code in-context by visiting: <a href="http://goo.gl/FUHszO">http://goo.gl/FUHszO</a></p>
+
+
+            <h2>Chapter 8</h2>
+            <h3>Section 8.1.1, Page 187, Listing 8.1 (2015/04/13)</h3>
+            <p>There is a code bug in the <tt>create_user()</tt> between lines 7 and 8, where there is a missing <tt>release_lock()</tt> call prior to return. In practice, this may cause a 1 second delay in deleting a status message for a user if someone were trying to create a new account with the same user name.</p>
+
+            <p>Lines 7-8 of <tt>create_user()</tt> originally read:</p>
+            <blockquote>
+<pre>    if conn.hget('users:', llogin):
+        return None</pre>
+            </blockquote>
+
+            <p>Lines 7-8 should be replaced with these 3 lines:</p>
+            <blockquote>
+<pre>    if conn.hget('users:', llogin):
+        release_lock(conn, 'user:' + llogin, lock)
+        return None</pre>
+            </blockquote>
+
+            <p>You can see the code in-context by visiting: <a href="http://goo.gl/quX7ee">http://goo.gl/quX7ee</a></p>
+
+
+            <h3>Section 8.3, Page 190-191, Listing 8.4 (2015/04/13)</h3>
+            <p>There is a race condition in the <tt>follow_user()</tt> function, caused by directly setting the size of the following/follower lists instead of incrementally changing them. This is fixed as part of other updates to <tt>follow_user()</tt> in section 10.3.3, listing 10.12, and we are just bringing a couple of these changes back to chapter 8.</p>
+
+            <p>Lines 12-21 originally read:</p>
+            <blockquote>
+<pre>    pipeline.zadd(fkey1, other_uid, now)    #C
+    pipeline.zadd(fkey2, uid, now)          #C
+    pipeline.zcard(fkey1)                           #D
+    pipeline.zcard(fkey2)                           #D
+    pipeline.zrevrange('profile:%s'%other_uid,      #E
+        0, HOME_TIMELINE_SIZE-1, withscores=True)   #E
+    following, followers, status_and_score = pipeline.execute()[-3:]
+
+    pipeline.hset('user:%s'%uid, 'following', following)        #F
+    pipeline.hset('user:%s'%other_uid, 'followers', followers)  #F</pre>
+            </blockquote>
+
+            <p>With 2 lines deleted and 2 lines changed, lines 12-19 should now read:</p>
+            <blockquote>
+<pre>    pipeline.zadd(fkey1, other_uid, now)    #C
+    pipeline.zadd(fkey2, uid, now)          #C
+    pipeline.zrevrange('profile:%s'%other_uid,      #E
+        0, HOME_TIMELINE_SIZE-1, withscores=True)   #E
+    following, followers, status_and_score = pipeline.execute()[-3:]
+
+    pipeline.hincrby('user:%s'%uid, 'following', int(following))        #F
+    pipeline.hincrby('user:%s'%other_uid, 'followers', int(followers))  #F</pre>
+            </blockquote>
+
+            <p>You can see the code in-context by visiting: <a href="http://goo.gl/mvmxwV">http://goo.gl/mvmxwV</a></p>
+
+            <h3>Section 8.3, Page 191-192, Listing 8.5 (2015/04/13)</h3>
+            <p>There is a race condition in the <tt>unfollow_user()</tt> function, caused by directly setting the size of the following/follower lists instead of incrementally changing them. This is the exact same bug that occurs in the <tt>follow_user()</tt> function, and has the same fix.</p>
+
+            <p>Lines 12-21 originally read:</p>
+            <blockquote>
+<pre>    pipeline.zrem(fkey1, other_uid, now)    #C
+    pipeline.rem(fkey2, uid, now)          #C
+    pipeline.zcard(fkey1)                           #D
+    pipeline.zcard(fkey2)                           #D
+    pipeline.zrevrange('profile:%s'%other_uid,      #E
+        0, HOME_TIMELINE_SIZE-1, withscores=True)   #E
+    following, followers, status_and_score = pipeline.execute()[-3:]
+
+    pipeline.hset('user:%s'%uid, 'following', following)        #F
+    pipeline.hset('user:%s'%other_uid, 'followers', followers)  #F</pre>
+            </blockquote>
+
+            <p>With 2 lines deleted and 2 lines changed, lines 12-19 should now read:</p>
+            <blockquote>
+<pre>    pipeline.zrem(fkey1, other_uid, now)    #C
+    pipeline.zrem(fkey2, uid, now)          #C
+    pipeline.zrevrange('profile:%s'%other_uid,      #E
+        0, HOME_TIMELINE_SIZE-1, withscores=True)   #E
+    following, followers, status_and_score = pipeline.execute()[-3:]
+
+    pipeline.hincrby('user:%s'%uid, 'following', int(following))        #F
+    pipeline.hincrby('user:%s'%other_uid, 'followers', int(followers))  #F</pre>
+            </blockquote>
+
+            <p>You can see the code in-context by visiting: <a href="http://goo.gl/mxcUqZ">http://goo.gl/mxcUqZ</a></p>
+
+
+            <h3>Section 8.4, Page 194, Listing 8.8 (2015/04/13)</h3>
+            <p>There is a code bug in the <tt>delete_status()</tt> function between lines 7 and 8, where there is a missing <tt>release_lock()</tt> call prior to return. In practice, this may cause a 1 second delay in deleting a status message for a user if someone tried to delete a status message they didn't own.</p>
+
+            <p>Lines 7-8 of <tt>delete_status(conn, uid, status_id)</tt> originally read:</p>
+            <blockquote>
+<pre>    if conn.hget(key, 'uid') != str(uid):
+        return None</pre>
+            </blockquote>
+
+            <p>Lines 7-8 should be replaced with these 3 lines:</p>
+            <blockquote>
+<pre>    if conn.hget(key, 'uid') != str(uid):
+        release_lock(conn, key, lock)
+        return None</pre>
+            </blockquote>
+
+            <p>You can see the code in-context by visiting: <a href="http://goo.gl/gL6dPG">http://goo.gl/gL6dPG</a></p>
+
+
+            <h3>Section 8.5.3, Page 201-202, Listing 8.14 (2015/04/13)</h3>
+
+            <p>There is a code bug in the streaming <tt>delete_status()</tt> function between lines 7 and 8, where there is a missing <tt>release_lock()</tt> call prior to return. In practice, this may cause a 1 second delay in deleting a status message for a user if someone tried to delete a status message they didn't own.</p>
+
+            <p>Lines 7-8 of <tt>delete_status(conn, uid, status_id)</tt> originally read:</p>
+            <blockquote>
+<pre>    if conn.hget(key, 'uid') != str(uid):
+        return None</pre>
+            </blockquote>
+
+            <p>Lines 7-8 should be replaced with these 3 lines:</p>
+            <blockquote>
+<pre>    if conn.hget(key, 'uid') != str(uid):
+        release_lock(conn, key, lock)
+        return None</pre>
+            </blockquote>
+
+            <p>You can see the code in-context by visiting: <a href="http://goo.gl/DzweRD">http://goo.gl/DzweRD</a></p>
+
+
+            <h3>Section 8.5.3, Page 205, Listing 8.19 (2014/07/30)</h3>
+            <p>There is a code bug in the <tt>FollowFilter()</tt> function on lines 2, 4, and 10 of the code listing, where the argument <tt>names</tt> is overridden by an empty set, which prevents the <tt>FollowFilter()</tt> call from actually following anyone.</p>
+
+            <p>The function originally read:</p>
+            <blockquote>
+<pre>def FollowFilter(names):
+    names = set()
+    for name in names:
+        names.add('@' + name.lower().lstrip('@'))
+
+    def check(status):
+        message_words = set(status['message'].lower().split())
+        message_words.add('@' + status['login'].lower())
+
+        return message_words & names
+    return check</pre>
+            </blockquote>
+
+            <p>The function (with comments here to show the changes) now reads:</p>
+            <blockquote>
+<pre>def FollowFilter(names):
+    nset = set() # first fix here
+    for name in names:
+        nset.add('@' + name.lower().lstrip('@')) # second fix here
+
+    def check(status):
+        message_words = set(status['message'].lower().split())
+        message_words.add('@' + status['login'].lower())
+
+        return message_words & nset # third fix here
+    return check</pre>
+            </blockquote>
+
+            <p>The diff (which might be easier to read) can be found: <a href="http://goo.gl/Opbp13">http://goo.gl/Opbp13</a></p>
+            <p>And the code in-context can be seen: <a href="http://goo.gl/GkqXp5">http://goo.gl/GkqXp5</a></p>
+        </div>
+    </body>
+</html>
