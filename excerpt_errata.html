@@ -183,7 +183,7 @@ pipe.hincrby(buyer, 'funds', int(-price))</pre>
             <p>Lines 12-21 originally read:</p>
             <blockquote>
 <pre>    pipeline.zrem(fkey1, other_uid, now)    #C
-    pipeline.rem(fkey2, uid, now)          #C
+    pipeline.zrem(fkey2, uid, now)          #C
     pipeline.zcard(fkey1)                           #D
     pipeline.zcard(fkey2)                           #D
     pipeline.zrevrange('profile:%s'%other_uid,      #E
