@@ -198,14 +198,12 @@ def follow_user(conn, uid, other_uid):
     pipeline = conn.pipeline(True)
     pipeline.zadd(fkey1, other_uid, now)    #C
     pipeline.zadd(fkey2, uid, now)          #C
-    pipeline.zcard(fkey1)                           #D
-    pipeline.zcard(fkey2)                           #D
     pipeline.zrevrange('profile:%s'%other_uid,      #E
         0, HOME_TIMELINE_SIZE-1, withscores=True)   #E
     following, followers, status_and_score = pipeline.execute()[-3:]
 
-    pipeline.hset('user:%s'%uid, 'following', following)        #F
-    pipeline.hset('user:%s'%other_uid, 'followers', followers)  #F
+    pipeline.hincrby('user:%s'%uid, 'following', int(following))        #F
+    pipeline.hincrby('user:%s'%other_uid, 'followers', int(followers))  #F
     if status_and_score:
         pipeline.zadd('home:%s'%uid, **dict(status_and_score))  #G
     pipeline.zremrangebyrank('home:%s'%uid, 0, -HOME_TIMELINE_SIZE-1)#G
@@ -216,7 +214,6 @@ def follow_user(conn, uid, other_uid):
 #A Cache the following and followers key names
 #B If the other_uid is already being followed, return
 #C Add the uids to the proper following and followers ZSETs
-#D Find the size of the following and followers ZSETs
 #E Fetch the most recent HOME_TIMELINE_SIZE status messages from the newly followed user's profile timeline
 #F Update the known size of the following and followers ZSETs in each user's HASH
 #G Update the home timeline of the following user, keeping only the most recent 1000 status messages
@@ -234,14 +231,12 @@ def unfollow_user(conn, uid, other_uid):
     pipeline = conn.pipeline(True)
     pipeline.zrem(fkey1, other_uid)                 #C
     pipeline.zrem(fkey2, uid)                       #C
-    pipeline.zcard(fkey1)                           #D
-    pipeline.zcard(fkey2)                           #D
     pipeline.zrevrange('profile:%s'%other_uid,      #E
         0, HOME_TIMELINE_SIZE-1)                    #E
     following, followers, statuses = pipeline.execute()[-3:]
 
-    pipeline.hset('user:%s'%uid, 'following', following)        #F
-    pipeline.hset('user:%s'%other_uid, 'followers', followers)  #F
+    pipeline.hincrby('user:%s'%uid, 'following', int(following))        #F
+    pipeline.hincrby('user:%s'%other_uid, 'followers', int(followers))  #F
     if statuses:
         pipeline.zrem('home:%s'%uid, *statuses)                 #G
 
@@ -251,7 +246,6 @@ def unfollow_user(conn, uid, other_uid):
 #A Cache the following and followers key names
 #B If the other_uid is not being followed, return
 #C Remove the uids the proper following and followers ZSETs
-#D Find the size of the following and followers ZSETs
 #E Fetch the most recent HOME_TIMELINE_SIZE status messages from the user that we stopped following
 #F Update the known size of the following and followers ZSETs in each user's HASH
 #G Update the home timeline, removing any status messages from the previously followed user
