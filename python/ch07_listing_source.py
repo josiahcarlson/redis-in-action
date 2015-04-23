@@ -485,7 +485,7 @@ def record_click(conn, target_id, ad_id, action=False):
             click_key = 'actions:%s' % ad_id  #B
 
     if action and type == 'cpa':
-        pipeline.incr('type:cpa:actions:' % type) #C
+        pipeline.incr('type:%s:actions:' % type) #C
     else:
         pipeline.incr('type:%s:clicks:' % type)   #C
 
