@@ -364,7 +364,6 @@ def purchase_item_with_lock(conn, buyerid, itemid, sellerid):
     seller = "users:%s" % sellerid
     item = "%s.%s" % (itemid, sellerid)
     inventory = "inventory:%s" % buyerid
-    end = time.time() + 30
 
     locked = acquire_lock(conn, 'market:')     #A
     if not locked:
