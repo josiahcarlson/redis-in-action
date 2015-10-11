@@ -24,6 +24,7 @@
     <body>
         <div id="body">
             <h1>Errata for Redis in Action</h1>
+            <img id="bookcover" width="150" height="188" src=" https://manning-content.s3.amazonaws.com/book/8/00f2522-76ce-4594-8564-541254e6d8f0/carlson.png" alt="booktitle">
             <p><i>Last updated April 23, 2015</i></p>
             <p><strong>You can view the most recent version of this errata <a href="http://htmlpreview.github.io/?https://github.com/josiahcarlson/redis-in-action/blob/master/excerpt_errata.html">here</a></strong></p>
             <h3>Known errata</h3>
@@ -31,6 +32,11 @@
                 <li><a href="#2">Chapter 2</a><br/>
                     <ul class="ns">
                         <li><a href="#2.5">Section 2.5</a>, Page 35, <a href="#l2.10">Listing 2.10</a></li>
+                    </ul>
+                </li>
+                <li><a href="#5">Chapter 5</a><br/>
+                    <ul class="ns">
+                        <li><a href="#5.1.2">Section 5.1.2</a>, Page 93, <a href="#l5.2">Listing 5.2</a></li>
                     </ul>
                 </li>
                 <li><a href="#6">Chapter 6</a><br/>
@@ -62,6 +68,7 @@
             </ul>
             <h3>Recent updates</h3>
             <ul>
+                <li>2015/10/10 - <a href="#5">Chapter 5</a>, <a href="#5.1.2">Section 5.1.2</a>, Page 93, <a href="#l5.2">Listing 5.2</a></li>
                 <li>2015/04/22 - <a href="#11">Chapter 11</a>, <a href="#11.3.2">Section 11.3.2</a>, Page 260-261, <a href="#l11.12">Listing 11.12</a></li>
                 <li>2015/04/22 - <a href="#7">Chapter 7</a>, <a href="#7.3.4">Section 7.3.4</a>, Page 177, <a href="#l7.15">Listing 7.15</a></li>
                 <li>2015/04/22 - <a href="#6">Chapter 6</a>, <a href="#6.2.3">Section 6.2.3</a>, Page 121, <a href="#l6.9">Listing 6.9</a></li>
@@ -99,6 +106,70 @@
             </blockquote>
 
             <p>You can see the updated code in-context by visiting: <a href="http://goo.gl/1hlS3m">http://goo.gl/1hlS3m</a></p>
+
+            <h2><a name=5>Chapter 5</a></h2>
+            <h3><a name="5.1.2">Section 5.1.2</a>, Page 93, <a name="l5.2">Listing 5.2</a> (2015/10/10)</h3>
+            <p>There is a <strong>bug</strong> caused by a missing <tt>elif</tt> clause inside the try block of the <tt>log_common()</tt> function definition.</p>
+            <p>The original full function definition reads:</p>
+            <blockquote>
+<pre>def log_common(conn, name, message, severity=logging.INFO, timeout=5):
+    severity = str(SEVERITY.get(severity, severity)).lower()
+    destination = 'common:%s:%s'%(name, severity)
+    start_key = destination + ':start'
+    pipe = conn.pipeline()
+    end = time.time() + timeout
+    while time.time() < end:
+        try:
+            pipe.watch(start_key)
+            now = datetime.utcnow().timetuple()
+            hour_start = datetime(*now[:4]).isoformat()
+
+            existing = pipe.get(start_key)
+            pipe.multi()
+            if existing and existing < hour_start:
+                pipe.rename(destination, destination + ':last')
+                pipe.rename(start_key, destination + ':pstart')
+                pipe.set(start_key, hour_start)
+
+            pipe.zincrby(destination, message)
+            log_recent(pipe, name, message, severity, pipe)
+            return
+        except redis.exceptions.WatchError:
+            continue</pre>
+            </blockquote>
+
+            <p>And with the added elif block (prefixed by a comment line below), the function should read:</p>
+            <blockquote>
+<pre>def log_common(conn, name, message, severity=logging.INFO, timeout=5):
+    severity = str(SEVERITY.get(severity, severity)).lower()
+    destination = 'common:%s:%s'%(name, severity)
+    start_key = destination + ':start'
+    pipe = conn.pipeline()
+    end = time.time() + timeout
+    while time.time() < end:
+        try:
+            pipe.watch(start_key)
+            now = datetime.utcnow().timetuple()
+            hour_start = datetime(*now[:4]).isoformat()
+
+            existing = pipe.get(start_key)
+            pipe.multi()
+            if existing and existing < hour_start:
+                pipe.rename(destination, destination + ':last')
+                pipe.rename(start_key, destination + ':pstart')
+                pipe.set(start_key, hour_start)
+            # add the following two lines
+            elif not existing:
+                pipe.set(start_key, hour_start)
+
+            pipe.zincrby(destination, message)
+            log_recent(pipe, name, message, severity, pipe)
+            return
+        except redis.exceptions.WatchError:
+            continue</pre>
+            </blockquote>
+
+            <p>You can see the change in-context by visiting: <a href="https://goo.gl/UN5kMw">https://goo.gl/UN5kMw</a></p>
 
 
             <h2><a name=6>Chapter 6</a></h2>
