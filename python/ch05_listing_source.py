@@ -67,6 +67,8 @@ def log_common(conn, name, message, severity=logging.INFO, timeout=5):
                 pipe.rename(destination, destination + ':last') #I
                 pipe.rename(start_key, destination + ':pstart') #I
                 pipe.set(start_key, hour_start)                 #J
+            elif not existing:                                  #J
+                pipe.set(start_key, hour_start)                 #J
 
             pipe.zincrby(destination, message)                  #K
             log_recent(pipe, name, message, severity, pipe)     #L
