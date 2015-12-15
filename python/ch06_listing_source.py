@@ -587,7 +587,7 @@ def leave_chat(conn, chat_id, user):
     else:
         oldest = conn.zrange(                                   #D
             'chat:' + chat_id, 0, 0, withscores=True)           #D
-        conn.zremrangebyscore('chat:' + chat_id, 0, oldest[0][1])     #E
+        conn.zremrangebyscore('msgs:' + chat_id, 0, oldest[0][1])     #E
 # <end id="_1314_14473_9136"/>
 #A Remove the user from the chat
 #B Find the number of remaining group members
