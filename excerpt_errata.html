@@ -1,8 +1,9 @@
-<html>
+﻿<html>
     <head>
+        <meta charset="UTF-8">
         <title>Errata for Redis in Action</title>
         <style type="text/css">
-            body {background-color: #ccc;}
+            body {background-color: #eee;}
             #body {
                 margin-left: auto;
                 margin-right: auto;
@@ -25,7 +26,7 @@
         <div id="body">
             <h1>Errata for Redis in Action</h1>
             <img id="bookcover" width="150" height="188" src=" https://manning-content.s3.amazonaws.com/book/8/00f2522-76ce-4594-8564-541254e6d8f0/carlson.png" alt="booktitle">
-            <p><i>Last updated April 23, 2015</i></p>
+            <p><i>Last updated December 14, 2015</i></p>
             <p><strong>You can view the most recent version of this errata <a href="http://htmlpreview.github.io/?https://github.com/josiahcarlson/redis-in-action/blob/master/excerpt_errata.html">here</a></strong></p>
             <h3>Known errata</h3>
             <ul class="ns">
@@ -68,6 +69,7 @@
             </ul>
             <h3>Recent updates</h3>
             <ul>
+                <li>2015/12/14 - <a href="#5">Chapter 6</a>, <a href="#6.5.2">Section 6.5.2</a>, Page 145, <a href="#l6.28">Listing 6.28</a></li>
                 <li>2015/10/10 - <a href="#5">Chapter 5</a>, <a href="#5.1.2">Section 5.1.2</a>, Page 93, <a href="#l5.2">Listing 5.2</a></li>
                 <li>2015/04/22 - <a href="#11">Chapter 11</a>, <a href="#11.3.2">Section 11.3.2</a>, Page 260-261, <a href="#l11.12">Listing 11.12</a></li>
                 <li>2015/04/22 - <a href="#7">Chapter 7</a>, <a href="#7.3.4">Section 7.3.4</a>, Page 177, <a href="#l7.15">Listing 7.15</a></li>
@@ -227,7 +229,7 @@ pipe.hincrby(buyer, 'funds', int(-price))</pre>
 
             <hr>
             <h3><a name="6.5.2">Section 6.5.2</a>, Page 145, <a name="l6.28">Listing 6.28</a> (2015/04/10)</h3>
-            <p>There is a <strong>bug</strong> on the last line of the <tt>leave_chat()</tt> function, where the <tt>oldest</tt> argument to the <tt>conn.zremrangebyscore()</tt> call should really be <tt>oldest[0][1]</tt>. The lines that read:</p>
+            <p>There are two <strong>bug</strong>s on the last line of the <tt>leave_chat()</tt> function. The first bug is where the <tt>oldest</tt> argument to the <tt>conn.zremrangebyscore()</tt> call should really be <tt>oldest[0][1]</tt> (this was discovered on 2015-04-10). The second bug is what reads as <tt>'chat:'</tt> should read <tt>'msgs:'</tt> (this was discovered on 2015-12-14). The lines that read:</p>
             <blockquote>
 <pre>        'chat:' + chat_id, 0, 0, withscores=True)
         conn.zremrangebyscore('chat:' + chat_id, 0, oldest)</pre>
@@ -236,10 +238,10 @@ pipe.hincrby(buyer, 'funds', int(-price))</pre>
             <p>Should instead read:</p>
             <blockquote>
 <pre>        'chat:' + chat_id, 0, 0, withscores=True)
-        conn.zremrangebyscore('chat:' + chat_id, 0, oldest[0][1])</pre>
+        conn.zremrangebyscore('msgs:' + chat_id, 0, oldest[0][1])</pre>
             </blockquote>
 
-            <p>You can see the code in-context by visiting: <a href="http://goo.gl/FUHszO">http://goo.gl/FUHszO</a></p>
+            <p>You can see the code in-context by visiting: <a href="https://goo.gl/T8zCp2">https://goo.gl/T8zCp2</a></p>
 
             <h2><a name=7>Chapter 7</a></h2>
             <h3><a name="7.3.4">Section 7.3.4</a>, Page 177, <a name="l7.15">Listing 7.15</a> (2014/04/22)</h3>
