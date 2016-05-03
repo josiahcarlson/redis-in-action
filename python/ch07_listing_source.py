@@ -633,13 +633,12 @@ def search_job_levels(conn, skill_levels):
     skills = {}
     for skill, level in skill_levels:
         level = min(level, SKILL_LEVEL_LIMIT)
-        for wlevel in xrange(level, SKILL_LEVEL_LIMIT+1):
-            skills['skill:%s:%s'%(skill,wlevel)] = 1
+        skills['skill:%s:%s'%(skill,level)] = 1
 
     job_scores = zunion(conn, skills)
     final_result = zintersect(conn, {job_scores:-1, 'jobs:req':1})
 
-    return conn.zrangebyscore('idx:' + final_result, 0, 0)
+    return conn.zrangebyscore('idx:' + final_result, '-inf', 0)
 
 
 def index_job_years(conn, job_id, skill_years):
@@ -650,7 +649,7 @@ def index_job_years(conn, job_id, skill_years):
             'idx:skill:%s:years'%skill, job_id, max(years, 0))
     pipeline.sadd('idx:jobs:all', job_id)
     pipeline.zadd('idx:jobs:req', job_id, total_skills)
-
+    pipeline.execute()
 
 def search_job_years(conn, skill_years):
     skill_years = dict(skill_years)
@@ -662,13 +661,14 @@ def search_job_years(conn, skill_years):
             {'jobs:all':-years, 'skill:%s:years'%skill:1}, _execute=False)
         pipeline.zremrangebyscore('idx:' + sub_result, '(0', 'inf')
         union.append(
-            zintersect(pipeline, {'jobs:all':1, sub_result:0}), _execute=False)
+            zintersect(pipeline, {'jobs:all':1, sub_result:0}, _execute=False))
 
     job_scores = zunion(pipeline, dict((key, 1) for key in union), _execute=False)
     final_result = zintersect(pipeline, {job_scores:-1, 'jobs:req':1}, _execute=False)
 
-    pipeline.zrange('idx:' + final_result, 0, 0)
+    pipeline.zrangebyscore('idx:' + final_result, '-inf', 0)
     return pipeline.execute()[-1]
+
 
 class TestCh07(unittest.TestCase):
     content = 'this is some random content, look at how it is indexed.'
@@ -821,6 +821,38 @@ class TestCh07(unittest.TestCase):
         self.assertEquals(find_jobs(self.conn, ['q1', 'q3', 'q4']), ['test2'])
         self.assertEquals(find_jobs(self.conn, ['q1', 'q3', 'q5']), ['test3'])
         self.assertEquals(find_jobs(self.conn, ['q1', 'q2', 'q3', 'q4', 'q5']), ['test1', 'test2', 'test3'])
+
+    def test_index_and_find_jobs_levels(self):
+        print "now testing find jobs with levels ..."
+        index_job_levels(self.conn, "job1" ,[('q1', 1)])
+        index_job_levels(self.conn, "job2", [('q1', 0), ('q2', 2)])
+
+        self.assertEquals(search_job_levels(self.conn, [('q1', 0)]), [])
+        self.assertEquals(search_job_levels(self.conn, [('q1', 1)]), ['job1'])
+        self.assertEquals(search_job_levels(self.conn, [('q1', 2)]), ['job1'])
+        self.assertEquals(search_job_levels(self.conn, [('q2', 1)]), [])
+        self.assertEquals(search_job_levels(self.conn, [('q2', 2)]), [])
+        self.assertEquals(search_job_levels(self.conn, [('q1', 0), ('q2', 1)]), [])
+        self.assertEquals(search_job_levels(self.conn, [('q1', 0), ('q2', 2)]), ['job2'])
+        self.assertEquals(search_job_levels(self.conn, [('q1', 1), ('q2', 1)]), ['job1'])
+        self.assertEquals(search_job_levels(self.conn, [('q1', 1), ('q2', 2)]), ['job1', 'job2'])
+        print "which passed"
+
+    def test_index_and_find_jobs_years(self):
+        print "now testing find jobs with years ..."
+        index_job_years(self.conn, "job1",[('q1',1)])
+        index_job_years(self.conn, "job2",[('q1',0),('q2',2)])
+
+        self.assertEquals(search_job_years(self.conn, [('q1',0)]), [])
+        self.assertEquals(search_job_years(self.conn, [('q1',1)]), ['job1'])
+        self.assertEquals(search_job_years(self.conn, [('q1',2)]), ['job1'])
+        self.assertEquals(search_job_years(self.conn, [('q2',1)]), [])
+        self.assertEquals(search_job_years(self.conn, [('q2',2)]), [])
+        self.assertEquals(search_job_years(self.conn, [('q1',0), ('q2', 1)]), [])
+        self.assertEquals(search_job_years(self.conn, [('q1',0), ('q2', 2)]), ['job2'])
+        self.assertEquals(search_job_years(self.conn, [('q1',1), ('q2', 1)]), ['job1'])
+        self.assertEquals(search_job_years(self.conn, [('q1',1), ('q2', 2)]), ['job1','job2'])
+        print "which passed"
 
 if __name__ == '__main__':
     unittest.main()
