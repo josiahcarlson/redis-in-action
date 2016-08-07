@@ -8,7 +8,7 @@ describe 'Chapter 1' do
     client.flushdb
   end
 
-  it do
+  it "tests article functionality" do
     article_id = post_article(client, 'username', 'A title', 'http://www.google.com')
     puts 'We posted a new article with id:', article_id
     expect(article_id).to be_truthy
@@ -16,7 +16,7 @@ describe 'Chapter 1' do
     puts 'Its HASH looks like:'
     article = client.hgetall("article:#{article_id}")
     puts article
-    expect(hash).to be_truthy
+    expect(article).to be_truthy
 
     article_vote(client, 'other_user', "article:#{article_id}")
     puts 'We voted for the article, it now has votes:'
