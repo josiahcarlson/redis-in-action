@@ -6,8 +6,6 @@ import unittest
 import urlparse
 import uuid
 
-QUIT = False
-
 # <start id="_1311_14471_8266"/>
 def check_token(conn, token):
     return conn.hget('login:', token)   #A
