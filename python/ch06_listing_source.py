@@ -245,7 +245,7 @@ def acquire_lock_with_timeout(
         if conn.setnx(lockname, identifier):            #B
             conn.expire(lockname, lock_timeout)         #B
             return identifier
-        elif not conn.ttl(lockname):                    #C
+        elif conn.ttl(lockname) < 0:                    #C
             conn.expire(lockname, lock_timeout)         #C
 
         time.sleep(.001)
