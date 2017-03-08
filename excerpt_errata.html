@@ -25,9 +25,9 @@
     <body>
         <div id="body">
             <h1>Errata for Redis in Action</h1>
-            <img id="bookcover" width="150" height="188" src=" https://manning-content.s3.amazonaws.com/book/8/00f2522-76ce-4594-8564-541254e6d8f0/carlson.png" alt="booktitle">
-            <p><i>Last updated December 14, 2015</i></p>
-            <p><strong>You can view the most recent version of this errata <a href="http://htmlpreview.github.io/?https://github.com/josiahcarlson/redis-in-action/blob/master/excerpt_errata.html">here</a></strong></p>
+            <img id="bookcover" width="150" height="188" src="https://manning-content.s3.amazonaws.com/book/8/00f2522-76ce-4594-8564-541254e6d8f0/carlson.png" alt="booktitle">
+            <p><i>Last updated March 7, 2017</i></p>
+            <p><strong>You can view the most recent version of this errata <a href="https://htmlpreview.github.io/?https://github.com/josiahcarlson/redis-in-action/blob/master/excerpt_errata.html">here</a></strong></p>
             <h3>Known errata</h3>
             <ul class="ns">
                 <li><a href="#2">Chapter 2</a><br/>
@@ -42,7 +42,9 @@
                 </li>
                 <li><a href="#6">Chapter 6</a><br/>
                     <ul class="ns">
+                        <li><a href="#6.1.1">Section 6.1.1</a>, Page 113, <a href="#l6.2">Listing 6.2</a></li>
                         <li><a href="#6.2.3">Section 6.2.3</a>, Page 121, <a href="#l6.9">Listing 6.9</a></li>
+                        <li><a href="#6.2.5">Section 6.2.5</a>, Page 126, <a href="#l6.11">Listing 6.11</a></li>
                         <li><a href="#6.5.2">Section 6.5.2</a>, Page 145, <a href="#l6.28">Listing 6.28</a></li>
                     </ul>
                 </li>
@@ -69,7 +71,9 @@
             </ul>
             <h3>Recent updates</h3>
             <ul>
-                <li>2015/12/14 - <a href="#5">Chapter 6</a>, <a href="#6.5.2">Section 6.5.2</a>, Page 145, <a href="#l6.28">Listing 6.28</a></li>
+                <li>2017/03/07 - <a href="#6">Chapter 6</a>, <a href="#6.2.5">Section 6.2.5</a>, Page 126, <a href="#l6.11">Listing 6.11</a></li>
+                <li>2017/03/07 - <a href="#6">Chapter 6</a>, <a href="#6.1.1">Section 6.1.1</a>, Page 113, <a href="#l6.2">Listing 6.2</a></li>
+                <li>2015/12/14 - <a href="#6">Chapter 6</a>, <a href="#6.5.2">Section 6.5.2</a>, Page 145, <a href="#l6.28">Listing 6.28</a></li>
                 <li>2015/10/10 - <a href="#5">Chapter 5</a>, <a href="#5.1.2">Section 5.1.2</a>, Page 93, <a href="#l5.2">Listing 5.2</a></li>
                 <li>2015/04/22 - <a href="#11">Chapter 11</a>, <a href="#11.3.2">Section 11.3.2</a>, Page 260-261, <a href="#l11.12">Listing 11.12</a></li>
                 <li>2015/04/22 - <a href="#7">Chapter 7</a>, <a href="#7.3.4">Section 7.3.4</a>, Page 177, <a href="#l7.15">Listing 7.15</a></li>
@@ -175,6 +179,33 @@
 
 
             <h2><a name=6>Chapter 6</a></h2>
+            <h3><a name="6.1.1">Section 6.1.1</a>, Page 113, <a name="l6.2">Listing 6.2</a> (2017/03/07)</h3>
+            <p>There is one minor bug in <tt>fetch_autocomplete_list()</tt>. While this fix is not necessary for the function to execute correctly in some cases, it is necessary for the code to execute correctly in all cases.</p>
+            <p><strong>Bug:</strong> <tt>prefix</tt> should have <tt>.lower()</tt> called on it before passing into <tt>.startswith()</tt> . The original function read as:</p>
+            <blockquote>
+<pre>def fetch_autocomplete_list(conn, user, prefix):
+     candidates = conn.lrange('recent:' + user, 0, -1)
+     matches = []
+     for candidate in candidates:
+         if candidate.lower().startswith(prefix):
+             matches.append(candidate)
+     return matches</pre>
+            </blockquote>
+
+            <p>With the <tt>.lower()</tt> call included, the function should read something like:</p>
+            <blockquote>
+<pre>def fetch_autocomplete_list(conn, user, prefix):
+     candidates = conn.lrange('recent:' + user, 0, -1)
+     prefix = prefix.lower()
+     matches = []
+     for candidate in candidates:
+         if candidate.lower().startswith(prefix):
+             matches.append(candidate)
+     return matches</pre>
+            </blockquote>
+
+            <p>You can see the code in-context by visiting: <a href="https://goo.gl/9FwNYi">https://goo.gl/9FwNYi</a></p>
+            <hr>
             <h3><a name="6.2.3">Section 6.2.3</a>, Page 121, <a name="l6.9">Listing 6.9</a> (2013/08/24, 2014/02/16, 2014/04/22)</h3>
             <p>There is one printing errata (wrong in the printed version, correct in the source code), three other bugs, and three cleanups in this listing for <tt>purchase_item_with_lock()</tt>.</p>
             <p><strong>Printing errata</strong>: there is a missing line between the two lines that read:</p>
@@ -227,7 +258,22 @@ pipe.hincrby(buyer, 'funds', int(-price))</pre>
             <p>There are also several additional (but unnecessary) <strong>cleanups</strong> that can be done to this listing. These changes include: 1) removing the <tt>while</tt> loop, 2) removing the <tt>try/except</tt> clause, 3) removing the unnecessary <tt>pipe.unwatch()</tt> call.</p>
             <p>You can see the change for these cleanups and the fixed <tt>market</tt> -&gt; <tt>'market:'</tt> reference inline by visiting: <a href="http://goo.gl/LxGvV8">http://goo.gl/LxGvV8</a></p>
 
-            <hr>
+            <h3><a name="6.2.5">Section 6.2.5</a>, Page 126, <a name="l6.11">Listing 6.11</a> (2017/03/07)</h3>
+            <p>There is a bug with the call to <tt>.ttl()</tt> in <tt>acquire_lock_with_timeout()</tt> that expects a different return result for missing time-to-live values.</p>
+            <p><strong>Bug:</strong> call to <tt>ttl()</tt> should be compared against 0, instead of being inverted by <tt>not</tt>:</p>
+            <blockquote>
+<pre>        elif not conn.ttl(lockname):
+            conn.expire(lockname, lock_timeout)</pre>
+            </blockquote>
+
+            <p>With the proper comparison, this should instead read:</p>
+            <blockquote>
+<pre>        elif conn.ttl(lockname) < 0:
+            conn.expire(lockname, lock_timeout)</pre>
+            </blockquote>
+
+            <p>You can see the code in-context by visiting: <a href="https://goo.gl/JHQqen">https://goo.gl/JHQqen</a></p>
+
             <h3><a name="6.5.2">Section 6.5.2</a>, Page 145, <a name="l6.28">Listing 6.28</a> (2015/04/10)</h3>
             <p>There are two <strong>bug</strong>s on the last line of the <tt>leave_chat()</tt> function. The first bug is where the <tt>oldest</tt> argument to the <tt>conn.zremrangebyscore()</tt> call should really be <tt>oldest[0][1]</tt> (this was discovered on 2015-04-10). The second bug is what reads as <tt>'chat:'</tt> should read <tt>'msgs:'</tt> (this was discovered on 2015-12-14). The lines that read:</p>
             <blockquote>
