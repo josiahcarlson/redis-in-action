@@ -734,9 +734,6 @@ class TestCh07(unittest.TestCase):
         r = parse_and_search(self.conn, 'content indexed -random')
         self.assertEquals(self.conn.smembers('idx:' + r), set())
 
-        r = parse_and_search(self.conn, 'content indexed +random')
-        self.assertEquals(self.conn.smembers('idx:' + r), set(['test']))
-
         print "Which passed!"
 
     def test_search_with_sort(self):
