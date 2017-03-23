@@ -356,7 +356,7 @@ def index_ad(conn, id, locations, content, type, value):
         pipeline.sadd('idx:req:'+location, id)              #B
 
     words = tokenize(content)
-    for word in tokenize(content):                          #H
+    for word in words:                                      #H
         pipeline.zadd('idx:' + word, id, 0)                 #H
 
     rvalue = TO_ECPM[type](                                 #C
