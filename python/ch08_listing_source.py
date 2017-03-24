@@ -235,8 +235,8 @@ def unfollow_user(conn, uid, other_uid):
         0, HOME_TIMELINE_SIZE-1)                    #E
     following, followers, statuses = pipeline.execute()[-3:]
 
-    pipeline.hincrby('user:%s'%uid, 'following', int(following))        #F
-    pipeline.hincrby('user:%s'%other_uid, 'followers', int(followers))  #F
+    pipeline.hincrby('user:%s'%uid, 'following', -int(following))        #F
+    pipeline.hincrby('user:%s'%other_uid, 'followers', -int(followers))  #F
     if statuses:
         pipeline.zrem('home:%s'%uid, *statuses)                 #G
 
