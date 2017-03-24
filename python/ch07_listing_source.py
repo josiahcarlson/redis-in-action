@@ -642,7 +642,7 @@ def search_job_levels(conn, skill_levels):
 
 
 def index_job_years(conn, job_id, skill_years):
-    total_skills = len(set(skill for skill, level in skill_years))
+    total_skills = len(set(skill for skill, years in skill_years))
     pipeline = conn.pipeline(True)
     for skill, years in skill_years:
         pipeline.zadd(
