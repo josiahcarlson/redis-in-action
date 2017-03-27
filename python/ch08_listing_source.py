@@ -295,7 +295,7 @@ def refill_timeline(conn, incoming, timeline, start=0):
 #END
 
 # <start id="exercise-follow-user-list"/>
-def follow_user_list(conn, uid, other_uid, list_id):
+def follow_user_list(conn, other_uid, list_id):
     fkey1 = 'list:in:%s'%list_id            #A
     fkey2 = 'list:out:%s'%other_uid         #A
     timeline = 'list:statuses:%s'%list_id   #A
@@ -329,7 +329,7 @@ def follow_user_list(conn, uid, other_uid, list_id):
 #END
 
 # <start id="exercise-unfollow-user-list"/>
-def unfollow_user_list(conn, uid, other_uid, list_id):
+def unfollow_user_list(conn, other_uid, list_id):
     fkey1 = 'list:in:%s'%list_id            #A
     fkey2 = 'list:out:%s'%other_uid         #A
     timeline = 'list:statuses:%s'%list_id   #A
