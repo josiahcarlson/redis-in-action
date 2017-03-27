@@ -308,26 +308,24 @@ def follow_user_list(conn, uid, other_uid, list_id):
     pipeline = conn.pipeline(True)
     pipeline.zadd(fkey1, other_uid, now)        #C
     pipeline.zadd(fkey2, list_id, now)          #C
-    pipeline.zcard(fkey1)                       #D
-    pipeline.zrevrange('profile:%s'%other_uid,      #E
-        0, HOME_TIMELINE_SIZE-1, withscores=True)   #E
-    following, status_and_score = pipeline.execute()[-2:]
+    pipeline.zrevrange('profile:%s'%other_uid,      #D
+        0, HOME_TIMELINE_SIZE-1, withscores=True)   #D
+    following, followers, status_and_score = pipeline.execute()[-3:]
 
-    pipeline.hset('list:%s'%list_id, 'following', following)    #F
-    pipeline.zadd(timeline, **dict(status_and_score))           #G
-    pipeline.zremrangebyrank(timeline, 0, -HOME_TIMELINE_SIZE-1)#G
+    pipeline.hincrby('list:%s'%list_id, 'following', int(following))    #E
+    pipeline.zadd(timeline, **dict(status_and_score))           #F
+    pipeline.zremrangebyrank(timeline, 0, -HOME_TIMELINE_SIZE-1)#F
 
     pipeline.execute()
-    return True                         #H
+    return True                         #G
 # <end id="exercise-follow-user"/>
 #A Cache the key names
 #B If the other_uid is already being followed by the list, return
 #C Add the uids to the proper ZSETs
-#D Find the size of the list ZSET
-#E Fetch the most recent status messages from the user's profile timeline
-#F Update the known size of the list ZSETs in the list information HASH
-#G Update the list of status messages
-#H Return that adding the user to the list completed successfully
+#D Fetch the most recent status messages from the user's profile timeline
+#E Update the known size of the list ZSETs in the list information HASH
+#F Update the list of status messages
+#G Return that adding the user to the list completed successfully
 #END
 
 # <start id="exercise-unfollow-user-list"/>
@@ -342,28 +340,27 @@ def unfollow_user_list(conn, uid, other_uid, list_id):
     pipeline = conn.pipeline(True)
     pipeline.zrem(fkey1, other_uid)                 #C
     pipeline.zrem(fkey2, list_id)                   #C
-    pipeline.zcard(fkey1)                           #D
-    pipeline.zrevrange('profile:%s'%other_uid,      #E
-        0, HOME_TIMELINE_SIZE-1)                    #E
-    following, statuses = pipeline.execute()[-2:]
+    pipeline.zrevrange('profile:%s'%other_uid,      #D
+        0, HOME_TIMELINE_SIZE-1)                    #D
+    following, followers, statuses = pipeline.execute()[-3:]
 
-    pipeline.hset('list:%s'%list_id, 'following', following)    #F
+    pipeline.hincrby('list:%s'%list_id, 'following', -int(following))    #E
     if statuses:
-        pipeline.zrem(timeline, *statuses)                      #G
-        refill_timeline(fkey1, timeline)                        #H
+        pipeline.zrem(timeline, *statuses)                      #F
+        refill_timeline(fkey1, timeline)                        #G
 
     pipeline.execute()
-    return True                         #I
+    return True                         #H
 # <end id="exercise-unfollow-user-list"/>
 #A Cache the key names
 #B If the other_uid is not being followed by the list, return
 #C Remove the uids from the proper ZSETs
 #D Find the size of the list ZSET
-#E Fetch the most recent status messages from the user that we stopped following
-#F Update the known size of the list ZSETs in the list information HASH
-#G Update the list timeline, removing any status messages from the previously followed user
-#H Start refilling the list timeline
-#I Return that the unfollow executed successfully
+#D Fetch the most recent status messages from the user that we stopped following
+#E Update the known size of the list ZSETs in the list information HASH
+#F Update the list timeline, removing any status messages from the previously followed user
+#G Start refilling the list timeline
+#H Return that the unfollow executed successfully
 #END
 
 # <start id="exercise-create-user-list"/>
