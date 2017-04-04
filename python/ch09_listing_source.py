@@ -425,7 +425,7 @@ def update_aggregates(countries, states, codes):
 
         if country not in STATES:                       #F
             continue                                    #F
-        if state < 0 or state >= STATES[country]:       #F
+        if state < 0 or state >= len(STATES[country]):  #F
             continue                                    #F
 
         state = STATES[country][state]                  #G
