@@ -63,6 +63,11 @@
                         <li><a href="#8.5.3">Section 8.5.3</a>, Page 205, <a href="#l8.19">Listing 8.19</a></li>
                     </ul>
                 </li>
+                <li><a href="#9">Chapter 9</a><br/>
+                    <ul class="ns">
+                        <li><a href="#9.3.3">Section 9.3.3</a>, Page 223-2224, <a href="#l9.17">Listing 9.17</a></li>
+                    </ul>
+                </li>
                 <li><a href="#11">Chapter 11</a><br/>
                     <ul class="ns">
                         <li><a href="#11.3.2">Section 11.3.2</a>, Page 260-261, <a href="#l11.12">Listing 11.12</a></li>
@@ -71,6 +76,8 @@
             </ul>
             <h3>Recent updates</h3>
             <ul>
+                <li>2017/04/03 - <a href="#9">Chapter 9</a>, <a href="#9.3.3">Section 3.3.3</a>, Page 223-224, <a href="#l9.17">Listing 9.17</a></li>
+                <li>2017/04/03 - <a href="#8">Chapter 8</a>, <a href="#8.3">Section 8.3</a>, Page 191-192, <a href="#l8.5">Listing 8.5</a></li>
                 <li>2017/03/07 - <a href="#6">Chapter 6</a>, <a href="#6.2.5">Section 6.2.5</a>, Page 126, <a href="#l6.11">Listing 6.11</a></li>
                 <li>2017/03/07 - <a href="#6">Chapter 6</a>, <a href="#6.1.1">Section 6.1.1</a>, Page 113, <a href="#l6.2">Listing 6.2</a></li>
                 <li>2015/12/14 - <a href="#6">Chapter 6</a>, <a href="#6.5.2">Section 6.5.2</a>, Page 145, <a href="#l6.28">Listing 6.28</a></li>
@@ -330,7 +337,7 @@ pipe.hincrby(buyer, 'funds', int(-price))</pre>
             <p>You can see the code in-context by visiting: <a href="http://goo.gl/quX7ee">http://goo.gl/quX7ee</a></p>
 
             <hr>
-            <h3><a name="8.3">Section 8.3</a>, Page 190-191, <a name="l8.4">Listing 8.4</a> (2015/04/13)</h3>
+            <h3><a name="8.3">Section 8.3</a>, Page 190-191, <a name="l8.4">Listing 8.4</a> (2017/04/03,2015/04/13)</h3>
             <p>There is a <strong>race condition</strong> in the <tt>follow_user()</tt> function, caused by directly setting the size of the following/follower lists instead of incrementally changing them. This is fixed as part of other updates to <tt>follow_user()</tt> in section 10.3.3, listing 10.12, and we are just bringing a couple of these changes back to chapter 8.</p>
 
             <p>Lines 12-21 originally read:</p>
@@ -387,8 +394,8 @@ pipe.hincrby(buyer, 'funds', int(-price))</pre>
         0, HOME_TIMELINE_SIZE-1, withscores=True)
     following, followers, status_and_score = pipeline.execute()[-3:]
 
-    pipeline.hincrby('user:%s'%uid, 'following', int(following))
-    pipeline.hincrby('user:%s'%other_uid, 'followers', int(followers))</pre>
+    pipeline.hincrby('user:%s'%uid, 'following', -int(following))
+    pipeline.hincrby('user:%s'%other_uid, 'followers', -int(followers))</pre>
             </blockquote>
 
             <p>You can see the code in-context by visiting: <a href="http://goo.gl/mxcUqZ">http://goo.gl/mxcUqZ</a></p>
@@ -469,6 +476,22 @@ pipe.hincrby(buyer, 'funds', int(-price))</pre>
             <p>The diff (which might be easier to read) can be found: <a href="http://goo.gl/Opbp13">http://goo.gl/Opbp13</a></p>
             <p>And the code in-context can be seen: <a href="http://goo.gl/GkqXp5">http://goo.gl/GkqXp5</a></p>
 
+<li>2017/04/03 - <a href="#9">Chapter 9</a>, <a href="#9.3.3">Section 3.3.3</a>, Page 223-224, <a href="#l9.17">Listing 9.17</a></li>
+            <h2><a name=9>Chapter 9</a></h2>
+            <h3><a name="9.3.3">Section 9.3.3</a>, Page 223-224, <a name="l9.17">Listing 9.17</a> (2017/04/03)</h3>
+
+            <p>There is a <strong>bug</strong> on the 17th line of the <tt>update_aggregates()</tt> function definition.</p>
+            <p>The one line reads:</p>
+            <blockquote>
+<pre>        if state < 0 or state >= STATES[country]:</pre>
+            </blockquote>
+
+            <p>The 17th line, updated inline, should read:</p>
+            <blockquote>
+<pre>        if state < 0 or state >= len(STATES[country]):</pre>
+            </blockquote>
+
+            <p>You can see the updated code in-context by visiting: <a href="https://github.com/josiahcarlson/redis-in-action/blob/master/python/ch09_listing_source.py#L412">https://github.com/josiahcarlson/redis-in-action/blob/master/python/ch09_listing_source.py#L412</a></p>
 
             <h2><a name=11>Chapter 11</a></h2>
             <h3><a name="11.3.2">Section 11.3.2</a>, Page 260-261, <a name="l11.12">Listing 11.12</a> (2015/04/22)</h3>
