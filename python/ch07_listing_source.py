@@ -734,9 +734,6 @@ class TestCh07(unittest.TestCase):
         r = parse_and_search(self.conn, 'content indexed -random')
         self.assertEquals(self.conn.smembers('idx:' + r), set())
 
-        r = parse_and_search(self.conn, 'content indexed +random')
-        self.assertEquals(self.conn.smembers('idx:' + r), set(['test']))
-
         print "Which passed!"
 
     def test_search_with_sort(self):
@@ -785,8 +782,8 @@ class TestCh07(unittest.TestCase):
         self.assertEquals(pairs, pairs2)
 
         zadd_string(self.conn, 'key', 'test', 'value', test2='other')
-        self.assertTrue(self.conn.zscore('key', 'test'), string_to_score('value'))
-        self.assertTrue(self.conn.zscore('key', 'test2'), string_to_score('other'))
+        self.assertEquals(self.conn.zscore('key', 'test'), string_to_score('value'))
+        self.assertEquals(self.conn.zscore('key', 'test2'), string_to_score('other'))
 
     def test_index_and_target_ads(self):
         index_ad(self.conn, '1', ['USA', 'CA'], self.content, 'cpc', .25)
