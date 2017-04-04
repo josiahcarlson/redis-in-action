@@ -356,7 +356,7 @@ def index_ad(conn, id, locations, content, type, value):
         pipeline.sadd('idx:req:'+location, id)              #B
 
     words = tokenize(content)
-    for word in tokenize(content):                          #H
+    for word in words:                                      #H
         pipeline.zadd('idx:' + word, id, 0)                 #H
 
     rvalue = TO_ECPM[type](                                 #C
@@ -642,7 +642,7 @@ def search_job_levels(conn, skill_levels):
 
 
 def index_job_years(conn, job_id, skill_years):
-    total_skills = len(set(skill for skill, level in skill_years))
+    total_skills = len(set(skill for skill, years in skill_years))
     pipeline = conn.pipeline(True)
     for skill, years in skill_years:
         pipeline.zadd(
