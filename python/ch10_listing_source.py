@@ -652,7 +652,6 @@ class TestCh10(unittest.TestCase):
             for k in keys:
                 cnt = conn.scard(k)
                 total += cnt
-                self.assertTrue(cnt < k)
         self.assertEquals(total, 100)
         self.assertEquals(self.conn.get(base), '100')
 
