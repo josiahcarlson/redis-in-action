@@ -110,7 +110,7 @@
             </blockquote>
 
             <p>If you read the definition in Listing 2.9 for <tt>update_token()</tt>, every item view results in a <tt>ZINCRBY -1</tt>, so the highest-hit items will have the lowest value score.</p>
-            <p>Looking at the above <tt>rescale_viewed()</tt> function, we delete everything that isn't in the lowest 20,000 value scoes.</p>
+            <p>Looking at the above <tt>rescale_viewed()</tt> function, we delete everything that isn't in the lowest 20,000 value scores.</p>
             <p>Between 2014/05/04 and 2017/06/26 I thought there was a bug in the original code, so there was an errata here, but this code is correct, given Listing 2.9 and <tt>update_token()</tt>.</p>
 
             <p>You can see the updated code in-context by visiting: <a href="https://github.com/josiahcarlson/redis-in-action/blob/master/python/ch02_listing_source.py#L170">https://github.com/josiahcarlson/redis-in-action/blob/master/python/ch02_listing_source.py#L170</a></p>
