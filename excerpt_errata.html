@@ -32,7 +32,7 @@
             <ul class="ns">
                 <li><a href="#2">Chapter 2</a><br/>
                     <ul class="ns">
-                        <li><a href="#2.5">Section 2.5</a>, Page 35, <a href="#l2.10">Listing 2.10</a></li>
+                        <li><a href="#2.5">Section 2.5</a>, Page 35, <a href="#l2.10">Listing 2.10</a> (not actually an error!)</li>
                     </ul>
                 </li>
                 <li><a href="#5">Chapter 5</a><br/>
@@ -76,6 +76,7 @@
             </ul>
             <h3>Recent updates</h3>
             <ul>
+                <li>2017/06/26 - <a href="#2">Chapter 2</a>, <a href="#2.5">Section 2.5</a>, Page 35, <a href="#l2.10">Listing 2.10</a> (not a bug)</li>
                 <li>2017/04/03 - <a href="#9">Chapter 9</a>, <a href="#9.3.3">Section 3.3.3</a>, Page 223-224, <a href="#l9.17">Listing 9.17</a></li>
                 <li>2017/04/03 - <a href="#8">Chapter 8</a>, <a href="#8.3">Section 8.3</a>, Page 191-192, <a href="#l8.5">Listing 8.5</a></li>
                 <li>2017/03/07 - <a href="#6">Chapter 6</a>, <a href="#6.2.5">Section 6.2.5</a>, Page 126, <a href="#l6.11">Listing 6.11</a></li>
@@ -98,9 +99,8 @@
             </ul>
 
             <h2><a name=2>Chapter 2</a></h2>
-            <h3><a name="2.5">Section 2.5</a>, Page 35, <a name="l2.10">Listing 2.10</a> (2014/05/04)</h3>
-            <p>There is a <strong>bug</strong> on the third line of the <tt>rescale_viewed()</tt> function definition.</p>
-            <p>The full function definition reads:</p>
+            <h3><a name="2.5">Section 2.5</a>, Page 35, <a name="l2.10">Listing 2.10</a> (2014/05/04, updated 2017/06/26)</h3>
+            <p>The full <tt>rescale_viewed()</tt> definition reads:</p>
             <blockquote>
 <pre>def rescale_viewed(conn):
     while not QUIT:
@@ -109,16 +109,11 @@
         time.sleep(300)</pre>
             </blockquote>
 
-            <p>The third line, updated inline, should read:</p>
-            <blockquote>
-<pre>def rescale_viewed(conn):
-    while not QUIT:
-        conn.zremrangebyrank('viewed:', 0, -20001)
-        conn.zinterstore('viewed:', {'viewed:': .5})
-        time.sleep(300)</pre>
-            </blockquote>
+            <p>If you read the definition in Listing 2.9 for <tt>update_token()</tt>, every item view results in a <tt>ZINCRBY -1</tt>, so the highest-hit items will have the lowest value score.</p>
+            <p>Looking at the above <tt>rescale_viewed()</tt> function, we delete everything that isn't in the lowest 20,000 value scoes.</p>
+            <p>Between 2014/05/04 and 2017/06/26 I thought there was a bug in the original code, so there was an errata here, but this code is correct, given Listing 2.9 and <tt>update_token()</tt>.</p>
 
-            <p>You can see the updated code in-context by visiting: <a href="http://goo.gl/1hlS3m">http://goo.gl/1hlS3m</a></p>
+            <p>You can see the updated code in-context by visiting: <a href="https://github.com/josiahcarlson/redis-in-action/blob/master/python/ch02_listing_source.py#L170">https://github.com/josiahcarlson/redis-in-action/blob/master/python/ch02_listing_source.py#L170</a></p>
 
             <h2><a name=5>Chapter 5</a></h2>
             <h3><a name="5.1.2">Section 5.1.2</a>, Page 93, <a name="l5.2">Listing 5.2</a> (2015/10/10)</h3>
