@@ -1,4 +1,11 @@
 module Chapter4
+  AssertionError = Class.new(StandardError)
+  class Util
+    def self.assert(expr)
+      raise AssertionError unless expr
+    end
+  end
+
   class Client
     def initialize(conn, users)
       @conn = conn
@@ -8,22 +15,57 @@ module Chapter4
     # =============== Section 4.4.2 ================== #
     def list_item(item, seller_id, price)
       u = User.new(seller_id)
-      @conn.watch(u.inventory_id) do
-        if @conn.sismember(u.inventory_id, item)
+      @conn.multi do |multi|
+        multi.srem(u.inventory_id, item)
+        multi.zadd("market", price, u.item_id(item))
+      end
+    end
+
+    # =============== Section 4.4.3 ================== #
+    def purchase_item(item, seller_id, buyer_id)
+      seller = User.new(seller_id)
+      buyer = User.new(buyer_id)
+      @conn.watch(["market", buyer.id]) do
+        fund = @conn.hget(buyer.id, "fund")
+        price = @conn.zscore("market", seller.item_id(item))
+
+        begin
+          Util.assert price && price <= fund.to_i
+
           @conn.multi do |multi|
-            multi.srem(u.inventory_id, item)
-            multi.zadd("market", price, u.item_id(item))
+            multi.hincrby(buyer.id, "fund", -price.to_i)
+            multi.hincrby(seller.id, "fund", price.to_i)
+            multi.zrem("market", seller.item_id(item))
+            multi.sadd(buyer.inventory_id, item)
           end
-        else
+        rescue
           @conn.unwatch
         end
       end
     end
+
+    # Without locking
+    def purchase_item_naive(item, seller_id, buyer_id)
+      seller = User.new(seller_id)
+      buyer = User.new(buyer_id)
+      fund = @conn.hget(buyer.id, "fund")
+      price = @conn.zscore("market", seller.item_id(item))
+
+      return if !price || price > fund.to_i
+
+      @conn.multi do |multi|
+        multi.hincrby(buyer.id, "fund", -price.to_i)
+        multi.hincrby(seller.id, "fund", price.to_i)
+        multi.zrem("market", seller.item_id(item))
+        multi.sadd(buyer.inventory_id, item)
+      end
+    end
+
     # ================================================ #
 
     def user(id)
       u = User.new(id)
-      @conn.hgetall u.id
+      @conn.hgetall(u.id)
     end
 
     def inventory(id)
