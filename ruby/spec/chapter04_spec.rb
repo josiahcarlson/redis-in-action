@@ -32,7 +32,7 @@ describe 'Chapter 4' do
     expect(c.user(0)).to eq({"name"=>"Jon", "fund"=>"100"})
     expect(c.user(1)).to eq({"name"=>"Arya", "fund"=>"300"})
 
-    expect(c.inventory(0)).to eq(["Longclaw", "Ghost"])
+    expect(c.inventory(0)).to match_array(["Longclaw", "Ghost"])
     expect(c.inventory(1)).to eq(["Needle", "Frey Pies"])
   end
 
