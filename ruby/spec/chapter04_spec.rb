@@ -33,7 +33,7 @@ describe 'Chapter 4' do
     expect(c.user(1)).to eq({"name"=>"Arya", "fund"=>"300"})
 
     expect(c.inventory(0)).to match_array(["Longclaw", "Ghost"])
-    expect(c.inventory(1)).to eq(["Needle", "Frey Pies"])
+    expect(c.inventory(1)).to match_array(["Needle", "Frey Pies"])
   end
 
   describe "list_item" do
@@ -42,20 +42,20 @@ describe 'Chapter 4' do
       expect(c.market == []).to be_truthy
 
       c.list_item("Needle", 1, 50)
-      expect(c.inventory(1)).to eq(["Frey Pies"])
+      expect(c.inventory(1)).to match_array(["Frey Pies"])
       expect(c.market).to eq([
         ["Needle.1", 50.0]
       ])
 
       c.list_item("Ghost", 0, 150)
-      expect(c.inventory(0)).to eq(["Longclaw"])
+      expect(c.inventory(0)).to match_array(["Longclaw"])
       expect(c.market).to eq([
         ["Needle.1", 50],
         ["Ghost.0", 150]
       ])
 
       c.list_item("Longclaw", 0, 90)
-      expect(c.inventory(0)).to eq([])
+      expect(c.inventory(0)).to match_array([])
       expect(c.market).to eq([
         ["Needle.1", 50],
         ["Longclaw.0", 90],
@@ -71,13 +71,13 @@ describe 'Chapter 4' do
       expect(c.market).to eq([["Ghost.0", 150]])
       expect(c.user(0)["fund"].to_i).to eq(100)
       expect(c.user(1)["fund"].to_i).to eq(300)
-      expect(c.inventory(1)).to eq(["Needle", "Frey Pies"])
+      expect(c.inventory(1)).to match_array(["Needle", "Frey Pies"])
 
       c.purchase_item("Ghost", 0, 1)
       expect(c.market).to eq([])
       expect(c.user(0)["fund"].to_i).to eq(250)
       expect(c.user(1)["fund"].to_i).to eq(150)
-      expect(c.inventory(1)).to eq(["Ghost", "Needle", "Frey Pies"])
+      expect(c.inventory(1)).to match_array(["Ghost", "Needle", "Frey Pies"])
     end
 
     it "handles race condition with optimistic locking" do
