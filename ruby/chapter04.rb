@@ -1,11 +1,4 @@
 module Chapter4
-  AssertionError = Class.new(StandardError)
-  class Util
-    def self.assert(expr)
-      raise AssertionError unless expr
-    end
-  end
-
   class Client
     def initialize(conn, users)
       @conn = conn
@@ -29,16 +22,14 @@ module Chapter4
         fund = @conn.hget(buyer.id, "fund")
         price = @conn.zscore("market", seller.item_id(item))
 
-        begin
-          Util.assert price && price <= fund.to_i
-
+        if price && price <= fund.to_i
           @conn.multi do |multi|
             multi.hincrby(buyer.id, "fund", -price.to_i)
             multi.hincrby(seller.id, "fund", price.to_i)
             multi.zrem("market", seller.item_id(item))
             multi.sadd(buyer.inventory_id, item)
           end
-        rescue
+        else
           @conn.unwatch
         end
       end
