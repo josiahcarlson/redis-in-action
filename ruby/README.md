@@ -23,7 +23,7 @@ Clone the code base and install pre-requisite gems
 
 ```
 git clone git@github.com:josiahcarlson/redis-in-action.git
-cd redis-in-action
+cd redis-in-action/ruby
 bundle install
 ```
 
