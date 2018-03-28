@@ -75,7 +75,7 @@ public class Chapter01 {
         String articleId = article.substring(article.indexOf(':') + 1);
         if (conn.sadd("voted:" + articleId, user) == 1) {
             conn.zincrby("score:", VOTE_SCORE, article);
-            conn.hincrBy(article, "votes", 1l);
+            conn.hincrBy(article, "votes", 1);
         }
     }
 
