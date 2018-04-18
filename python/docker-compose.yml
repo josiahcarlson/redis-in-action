@@ -1,0 +1,18 @@
+version: "3"
+
+services:
+  python:
+    build: .
+    image: "python:redis-in-action"
+    container_name: "redis-in-action-python"
+    tty: true
+    volumes:
+      - ".:/usr/src/app"
+    network_mode: "host"
+
+  redis:
+    image: "redis:latest"
+    container_name: "redis-in-action-redis"
+    ports:
+      - "6379:6379"
+    network_mode: "host"
