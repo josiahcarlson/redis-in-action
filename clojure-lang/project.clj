@@ -6,5 +6,4 @@
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [com.taoensso/carmine "2.18.1"]
                  [cheshire "5.8.0"]
-                 [clj-time "0.14.4"]]
-  :aot :all)
+                 [clj-time "0.14.4"]])
