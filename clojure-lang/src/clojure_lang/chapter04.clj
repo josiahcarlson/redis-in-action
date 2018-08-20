@@ -24,8 +24,8 @@
 
 
 ;; Listing 4.6: The purchase_item() function
-(defn buyer-id
-  [item-id seller-id list-price]
+(defn purchase-item
+  [buyer-id item-id seller-id list-price]
   (let [buyer-key (str "users:" buyer-id)
         seller-key (str "users:" seller-id)
         item-key (format "%s.%s" item-id seller-id)
