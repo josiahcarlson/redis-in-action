@@ -153,7 +153,7 @@ def update_token(conn, token, user, item=None):
         conn.lrem(key, item)                    #A
         conn.rpush(key, item)                   #B
         conn.ltrim(key, -25, -1)                #C
-    conn.zincrby('viewed:', item, -1)
+        conn.zincrby('viewed:', item, -1)
 # <end id="exercise-update-token"/>
 #A Remove the item from the list if it was there
 #B Push the item to the right side of the LIST so that ZRANGE and LRANGE have the same result
@@ -570,8 +570,8 @@ def update_token(conn, token, user, item=None):
         conn.lrem(key, item)
         conn.rpush(key, item)
         conn.ltrim(key, -25, -1)
+        conn.zincrby('viewed:', item, -1)
     conn.expire(key, THIRTY_DAYS)                   #C
-    conn.zincrby('viewed:', item, -1)
 
 def add_to_cart(conn, session, item, count):
     key = 'cart:' + session
