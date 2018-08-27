@@ -26,13 +26,18 @@
         <div id="body">
             <h1>Errata for Redis in Action</h1>
             <img id="bookcover" width="150" height="188" src="https://manning-content.s3.amazonaws.com/book/8/00f2522-76ce-4594-8564-541254e6d8f0/carlson.png" alt="booktitle">
-            <p><i>Last updated March 7, 2017</i></p>
+            <p><i>Last updated August 27, 2018</i></p>
             <p><strong>You can view the most recent version of this errata <a href="https://htmlpreview.github.io/?https://github.com/josiahcarlson/redis-in-action/blob/master/excerpt_errata.html">here</a></strong></p>
             <h3>Known errata</h3>
             <ul class="ns">
                 <li><a href="#2">Chapter 2</a><br/>
                     <ul class="ns">
                         <li><a href="#2.5">Section 2.5</a>, Page 35, <a href="#l2.10">Listing 2.10</a> (not actually an error!)</li>
+                    </ul>
+                </li>
+                <li><a href="#3">Chapter 3 exercises</a><br/>
+                    <ul class="ns">
+                        <li><a href="#3.7">Section 3.7</a>, Page 62, <a href="#l3.16">Exercise: Replacing timestamp <tt>ZSETS</tt> with <tt>EXPIRE</tt></a></li>
                     </ul>
                 </li>
                 <li><a href="#5">Chapter 5</a><br/>
@@ -76,6 +81,7 @@
             </ul>
             <h3>Recent updates</h3>
             <ul>
+                <li>2018/08/27 - <a href="#3">Chapter 3</a>, <a href="#3.7">Section 3.7</a>, Page 62, <a href="#l3.16">Exercise: Replacing timestamp <tt>ZSETS</tt> with <tt>EXPIRE</tt></a></li>
                 <li>2017/06/26 - <a href="#2">Chapter 2</a>, <a href="#2.5">Section 2.5</a>, Page 35, <a href="#l2.10">Listing 2.10</a> (not a bug)</li>
                 <li>2017/04/03 - <a href="#9">Chapter 9</a>, <a href="#9.3.3">Section 3.3.3</a>, Page 223-224, <a href="#l9.17">Listing 9.17</a></li>
                 <li>2017/04/03 - <a href="#8">Chapter 8</a>, <a href="#8.3">Section 8.3</a>, Page 191-192, <a href="#l8.5">Listing 8.5</a></li>
@@ -114,6 +120,13 @@
             <p>Between 2014/05/04 and 2017/06/26 I thought there was a bug in the original code, so there was an errata here, but this code is correct, given Listing 2.9 and <tt>update_token()</tt>.</p>
 
             <p>You can see the updated code in-context by visiting: <a href="https://github.com/josiahcarlson/redis-in-action/blob/master/python/ch02_listing_source.py#L170">https://github.com/josiahcarlson/redis-in-action/blob/master/python/ch02_listing_source.py#L170</a></p>
+
+            <h2><a name=3>Chapter 3</a></h2>
+            <h3><a name="3.7">Section 3.7</a>, Page 62, <a name="l3.16">Exercise: Replacing timestamp <tt>ZSETS</tt> with <tt>EXPIRE</tt></a> (2018/08/27)</h3>
+
+            <p>The exercise included in the book references two functions, <tt>update_token()</tt> and <tt>add_to_cart()</tt>. In the github source for the functions and their updates in chapter 3, both had single-line errors where <tt>conn.zincrby('viewed:', item, -1)</tt> should have been protected from an empty/null <tt>item</tt> inside an if clause.</p>
+
+            <p>You can see the fix in this github commit: <a href="https://github.com/josiahcarlson/redis-in-action/commit/9156ad6ee8e4a7f53980ad45c49e877083ecbe27">https://github.com/josiahcarlson/redis-in-action/commit/9156ad6ee</a></p>
 
             <h2><a name=5>Chapter 5</a></h2>
             <h3><a name="5.1.2">Section 5.1.2</a>, Page 93, <a name="l5.2">Listing 5.2</a> (2015/10/10)</h3>
