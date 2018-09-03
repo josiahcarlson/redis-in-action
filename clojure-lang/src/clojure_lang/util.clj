@@ -9,7 +9,7 @@
           :max-wait-ms 5000
           :soft-min-evictable-idle-time-ms 60000
           :min-evictable-idle-time-ms -1}
-   :spec {:host "shiva.local"
+   :spec {:host "localhost"
           :port 6379}})
 
 
