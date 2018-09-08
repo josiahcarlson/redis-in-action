@@ -4,5 +4,5 @@ Code examples implemented in Clojure.
 
 ## Installation
 
-Install Clojure using [Leiningen](https://leiningen.org/).
+Refer to [Clojure Getting Started Guide](https://clojure.org/guides/getting_started).
 
