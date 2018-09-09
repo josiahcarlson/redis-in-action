@@ -4,3 +4,13 @@ GeoLiteCity-*.csv
 .idea
 *.iml
 node_modules
+clojure-lang/target
+clojure-lang/classes
+clojure-/checkouts
+pom.xml
+pom.xml.asc
+*.jar
+*.class
+clojure-lang/.lein-*
+clojure-lang/.nrepl-port
+clojure-lang/.hg*
