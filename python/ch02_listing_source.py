@@ -273,7 +273,7 @@ class TestCh02(unittest.TestCase):
         print "The current number of sessions still available is:", s
         self.assertFalse(s)
 
-    def test_shoppping_cart_cookies(self):
+    def test_shopping_cart_cookies(self):
         conn = self.conn
         global LIMIT, QUIT
         token = str(uuid.uuid4())
