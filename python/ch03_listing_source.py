@@ -219,7 +219,7 @@ True                                                            #A
 >>> conn.hlen('hash-key')                                       #C
 3                                                               #C
 >>> conn.hdel('hash-key', 'k1', 'k3')                           #D
-True                                                            #D
+2                                                               #D
 # <end id="hash-calls-1"/>
 #A We can add multiple items to the hash in one call
 #B We can fetch a subset of the values in a single call
