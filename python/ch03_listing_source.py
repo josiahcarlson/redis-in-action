@@ -166,9 +166,9 @@ def update_token(conn, token, user, item=None):
 >>> conn.sadd('set-key', 'a', 'b', 'c')         #A
 3                                               #A
 >>> conn.srem('set-key', 'c', 'd')              #B
-True                                            #B
+1                                               #B
 >>> conn.srem('set-key', 'c', 'd')              #B
-False                                           #B
+0                                               #B
 >>> conn.scard('set-key')                       #C
 2                                               #C
 >>> conn.smembers('set-key')                    #D
@@ -219,7 +219,7 @@ True                                                            #A
 >>> conn.hlen('hash-key')                                       #C
 3                                                               #C
 >>> conn.hdel('hash-key', 'k1', 'k3')                           #D
-True                                                            #D
+2                                                               #D
 # <end id="hash-calls-1"/>
 #A We can add multiple items to the hash in one call
 #B We can fetch a subset of the values in a single call
