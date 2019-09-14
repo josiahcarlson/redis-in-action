@@ -18,7 +18,7 @@ pipe = inv = item = buyer = seller = inventory = None
 def add_update_contact(conn, user, contact):
     ac_list = 'recent:' + user
     pipeline = conn.pipeline(True)     #A
-    pipeline.lrem(ac_list, contact)    #B
+    pipeline.lrem(ac_list, 1, contact)    #B
     pipeline.lpush(ac_list, contact)   #C
     pipeline.ltrim(ac_list, 0, 99)     #D
     pipeline.execute()                 #E
@@ -32,7 +32,7 @@ def add_update_contact(conn, user, contact):
 
 # <start id="_1314_14473_8383"/>
 def remove_contact(conn, user, contact):
-    conn.lrem('recent:' + user, contact)
+    conn.lrem('recent:' + user, 1, contact)
 # <end id="_1314_14473_8383"/>
 #END
 
@@ -40,6 +40,7 @@ def remove_contact(conn, user, contact):
 def fetch_autocomplete_list(conn, user, prefix):
     candidates = conn.lrange('recent:' + user, 0, -1) #A
     matches = []
+    prefix = prefix.encode()
     for candidate in candidates:                      #B
         if candidate.lower().startswith(prefix.lower()):      #B
             matches.append(candidate)                 #C
@@ -73,7 +74,7 @@ def autocomplete_on_prefix(conn, guild, prefix):
     end += identifier                                      #A
     zset_name = 'members:' + guild
 
-    conn.zadd(zset_name, start, 0, end, 0)                 #B
+    conn.zadd(zset_name, {start: 0, end: 0})               #B
     pipeline = conn.pipeline(True)
     while 1:
         try:
@@ -89,7 +90,7 @@ def autocomplete_on_prefix(conn, guild, prefix):
         except redis.exceptions.WatchError:                #E
             continue                                       #E
 
-    return [item for item in items if '{' not in item]     #F
+    return [item for item in items if b'{' not in item]     #F
 # <end id="_1314_14473_8399"/>
 #A Find the start/end range for the prefix
 #B Add the start/end range items to the ZSET
@@ -101,7 +102,7 @@ def autocomplete_on_prefix(conn, guild, prefix):
 
 # <start id="_1314_14473_8403"/>
 def join_guild(conn, guild, user):
-    conn.zadd('members:' + guild, user, 0)
+    conn.zadd('members:' + guild, {user: 0})
 
 def leave_guild(conn, guild, user):
     conn.zrem('members:' + guild, user)
@@ -117,7 +118,7 @@ def list_item(conn, itemid, sellerid, price):
                 return None
 
             pipe.multi()                                #C
-            pipe.zadd("market:", item, price)           #C
+            pipe.zadd("market:", {item: price})         #C
             pipe.srem(inv, itemid)                      #C
             pipe.execute()                              #C
             return True
@@ -209,6 +210,8 @@ def purchase_item_with_lock(conn, buyerid, itemid, sellerid):
 def release_lock(conn, lockname, identifier):
     pipe = conn.pipeline(True)
     lockname = 'lock:' + lockname
+    if isinstance(identifier, str):
+        identifier = identifier.encode()
 
     while True:
         try:
@@ -265,7 +268,7 @@ def acquire_semaphore(conn, semname, limit, timeout=10):
 
     pipeline = conn.pipeline(True)
     pipeline.zremrangebyscore(semname, '-inf', now - timeout)  #B
-    pipeline.zadd(semname, identifier, now)                    #C
+    pipeline.zadd(semname, {identifier: now})                  #C
     pipeline.zrank(semname, identifier)                        #D
     if pipeline.execute()[-1] < limit:                         #D
         return identifier
@@ -301,8 +304,8 @@ def acquire_fair_semaphore(conn, semname, limit, timeout=10):
     pipeline.incr(ctr)                                         #C
     counter = pipeline.execute()[-1]                           #C
 
-    pipeline.zadd(semname, identifier, now)                    #D
-    pipeline.zadd(czset, identifier, counter)                  #D
+    pipeline.zadd(semname, {identifier: now})                  #D
+    pipeline.zadd(czset, {identifier: counter})                #D
 
     pipeline.zrank(czset, identifier)                          #E
     if pipeline.execute()[-1] < limit:                         #E
@@ -334,7 +337,7 @@ def release_fair_semaphore(conn, semname, identifier):
 
 # <start id="_1314_14473_9022"/>
 def refresh_fair_semaphore(conn, semname, identifier):
-    if conn.zadd(semname, identifier, time.time()):            #A
+    if conn.zadd(semname, {identifier: time.time()}):          #A
         release_fair_semaphore(conn, semname, identifier)      #B
         return False                                           #B
     return True                                                #C
@@ -433,7 +436,7 @@ def execute_later(conn, queue, name, args, delay=0):
     identifier = str(uuid.uuid4())                          #A
     item = json.dumps([identifier, queue, name, args])      #B
     if delay > 0:
-        conn.zadd('delayed:', item, time.time() + delay)    #C
+        conn.zadd('delayed:', {item: time.time() + delay})  #C
     else:
         conn.rpush('queue:' + queue, item)                  #D
     return identifier                                       #E
@@ -482,9 +485,9 @@ def create_chat(conn, sender, recipients, message, chat_id=None):
     recipientsd = dict((r, 0) for r in recipients)        #E
 
     pipeline = conn.pipeline(True)
-    pipeline.zadd('chat:' + chat_id, **recipientsd)       #B
+    pipeline.zadd('chat:' + chat_id, recipientsd)         #B
     for rec in recipients:                                #C
-        pipeline.zadd('seen:' + rec, chat_id, 0)          #C
+        pipeline.zadd('seen:' + rec, {chat_id: 0})        #C
     pipeline.execute()
 
     return send_message(conn, chat_id, sender, message)   #D
@@ -511,7 +514,7 @@ def send_message(conn, chat_id, sender, message):
             'message': message,                          #A
         })                                               #A
 
-        conn.zadd('msgs:' + chat_id, packed, mid)        #B
+        conn.zadd('msgs:' + chat_id, {packed: mid})      #B
     finally:
         release_lock(conn, 'chat:' + chat_id, identifier)
     return chat_id
@@ -528,7 +531,7 @@ def fetch_pending_messages(conn, recipient):
 
     for chat_id, seen_id in seen:                               #B
         pipeline.zrangebyscore(                                 #B
-            'msgs:' + chat_id, seen_id+1, 'inf')                #B
+            b'msgs:' + chat_id, seen_id+1, 'inf')                #B
     chat_info = list(zip(seen, pipeline.execute()))                   #C
 
     for i, ((chat_id, seen_id), messages) in enumerate(chat_info):
@@ -536,15 +539,15 @@ def fetch_pending_messages(conn, recipient):
             continue
         messages[:] = list(map(json.loads, messages))
         seen_id = messages[-1]['id']                            #D
-        conn.zadd('chat:' + chat_id, recipient, seen_id)        #D
+        conn.zadd(b'chat:' + chat_id, {recipient: seen_id})      #D
 
         min_id = conn.zrange(                                   #E
-            'chat:' + chat_id, 0, 0, withscores=True)           #E
+            b'chat:' + chat_id, 0, 0, withscores=True)           #E
 
-        pipeline.zadd('seen:' + recipient, chat_id, seen_id)    #F
+        pipeline.zadd('seen:' + recipient, {chat_id: seen_id})  #F
         if min_id:
             pipeline.zremrangebyscore(                          #G
-                'msgs:' + chat_id, 0, min_id[0][1])             #G
+                b'msgs:' + chat_id, 0, min_id[0][1])             #G
         chat_info[i] = (chat_id, messages)
     pipeline.execute()
 
@@ -564,8 +567,8 @@ def join_chat(conn, chat_id, user):
     message_id = int(conn.get('ids:' + chat_id))                #A
 
     pipeline = conn.pipeline(True)
-    pipeline.zadd('chat:' + chat_id, user, message_id)          #B
-    pipeline.zadd('seen:' + user, chat_id, message_id)          #C
+    pipeline.zadd('chat:' + chat_id, {user: message_id})          #B
+    pipeline.zadd('seen:' + user, {chat_id: message_id})          #C
     pipeline.execute()
 # <end id="_1314_14473_9135"/>
 #A Get the most recent message id for the chat
@@ -609,7 +612,7 @@ def daily_country_aggregate(conn, line):
         return
 
     for day, aggregate in list(aggregates.items()):           #E
-        conn.zadd('daily:country:' + day, **aggregate)  #E
+        conn.zadd('daily:country:' + day, aggregate)  #E
         del aggregates[day]                             #E
 # <end id="_1314_15044_3669"/>
 #A Prepare the local aggregate dictionary
@@ -625,7 +628,7 @@ def copy_logs_to_redis(conn, path, channel, count=10,
     bytes_in_redis = 0
     waiting = deque()
     create_chat(conn, 'source', list(map(str, list(range(count)))), '', channel) #I
-    count = str(count)
+    count = str(count).encode()
     for logfile in sorted(os.listdir(path)):               #A
         full_path = os.path.join(path, logfile)
 
@@ -662,7 +665,7 @@ def _clean(conn, channel, waiting, count):                 #H
     if not waiting:                                        #H
         return 0                                           #H
     w0 = waiting[0][0]                                     #H
-    if conn.get(channel + w0 + ':done') == count:          #H
+    if (conn.get(channel + w0 + ':done') or b'0') >= count:#H
         conn.delete(channel + w0, channel + w0 + ':done')  #H
         return waiting.popleft()[1]                        #H
     return 0                                               #H
@@ -684,6 +687,8 @@ def process_logs_from_redis(conn, id, callback):
         fdata = fetch_pending_messages(conn, id)                    #A
 
         for ch, mdata in fdata:
+            if isinstance(ch, bytes):
+                ch = ch.decode()
             for message in mdata:
                 logfile = message['message']
 
@@ -716,13 +721,15 @@ def process_logs_from_redis(conn, id, callback):
 
 # <start id="_1314_14473_9221"/>
 def readlines(conn, key, rblocks):
-    out = ''
+    out = b''
     for block in rblocks(conn, key):
+        if isinstance(block, str):
+            block = block.encode()
         out += block
-        posn = out.rfind('\n')                      #A
+        posn = out.rfind(b'\n')                     #A
         if posn >= 0:                               #B
-            for line in out[:posn].split('\n'):     #C
-                yield line + '\n'                   #D
+            for line in out[:posn].split(b'\n'):    #C
+                yield line + b'\n'                  #D
             out = out[posn+1:]                      #E
         if not block:                               #F
             yield out
@@ -754,22 +761,22 @@ def readblocks(conn, key, blocksize=2**17):
 
 # <start id="_1314_14473_9229"/>
 def readblocks_gz(conn, key):
-    inp = ''
+    inp = b''
     decoder = None
     for block in readblocks(conn, key, 2**17):                  #A
         if not decoder:
             inp += block
             try:
-                if inp[:3] != "\x1f\x8b\x08":                #B
+                if inp[:3] != b"\x1f\x8b\x08":                #B
                     raise IOError("invalid gzip data")          #B
                 i = 10                                          #B
-                flag = ord(inp[3])                              #B
+                flag = inp[3]                                   #B
                 if flag & 4:                                    #B
-                    i += 2 + ord(inp[i]) + 256*ord(inp[i+1])    #B
+                    i += 2 + inp[i] + 256*inp[i+1]              #B
                 if flag & 8:                                    #B
-                    i = inp.index('\0', i) + 1                  #B
+                    i = inp.index(b'\0', i) + 1                 #B
                 if flag & 16:                                   #B
-                    i = inp.index('\0', i) + 1                  #B
+                    i = inp.index(b'\0', i) + 1                 #B
                 if flag & 2:                                    #B
                     i += 2                                      #B
 
@@ -829,7 +836,7 @@ class TestCh06(unittest.TestCase):
         contacts = conn.lrange('recent:user', 0, 2)
         print("New top-3 contacts:")
         pprint.pprint(contacts)
-        self.assertEqual(contacts[0], 'contact-1-4')
+        self.assertEqual(contacts[0], b'contact-1-4')
         print()
 
         print("Let's remove a contact...")
@@ -844,7 +851,7 @@ class TestCh06(unittest.TestCase):
         all = conn.lrange('recent:user', 0, -1)
         contacts = fetch_autocomplete_list(conn, 'user', 'c')
         self.assertTrue(all == contacts)
-        equiv = [c for c in all if c.startswith('contact-2-')]
+        equiv = [c for c in all if c.startswith(b'contact-2-')]
         contacts = fetch_autocomplete_list(conn, 'user', 'contact-2-')
         equiv.sort()
         contacts.sort()
@@ -966,26 +973,32 @@ class TestCh06(unittest.TestCase):
         self.conn.delete('ids:chat:', 'msgs:1', 'ids:1', 'seen:joe', 'seen:jeff', 'seen:jenny')
 
     def test_file_distribution(self):
-        import gzip, shutil, tempfile, threading
+        import gzip, shutil, tempfile, threading, binascii
         self.conn.delete('test:temp-1.txt', 'test:temp-2.txt', 'test:temp-3.txt', 'msgs:test:', 'seen:0', 'seen:source', 'ids:test:', 'chat:test:')
 
         dire = tempfile.mkdtemp()
         try:
             print("Creating some temporary 'log' files...")
+            sizes = []
             with open(dire + '/temp-1.txt', 'wb') as f:
-                f.write('one line\n')
+                f.write(b'one line\n')
+                sizes.append(f.tell())
             with open(dire + '/temp-2.txt', 'wb') as f:
-                f.write(10000 * 'many lines\n')
+                f.write(10000 * b'many lines\n')
+                sizes.append(f.tell())
             out = gzip.GzipFile(dire + '/temp-3.txt.gz', mode='wb')
-            for i in range(100000):
-                out.write('random line %s\n'%(os.urandom(16).encode('hex'),))
+            for i in range(10000):
+                out.write(10 * ((f'random line %s\n'%(i,)).encode()))
+            out.flush()
             out.close()
-            size = os.stat(dire + '/temp-3.txt.gz').st_size
+            sizes.append(os.stat(dire + '/temp-3.txt.gz').st_size)
             print("Done.")
             print()
             print("Starting up a thread to copy logs to redis...")
-            t = threading.Thread(target=copy_logs_to_redis, args=(self.conn, dire, 'test:', 1, size))
-            t.setDaemon(1)
+            t = threading.Thread(target=copy_logs_to_redis,
+                args=(self.conn, dire, 'test:', 1, sum(sizes)+1)
+            )
+            t.daemonic = 1
             t.start()
 
             print("Let's pause to let some logs get copied to Redis...")
@@ -999,7 +1012,7 @@ class TestCh06(unittest.TestCase):
                 if line is None:
                     print("Finished with a file %s, linecount: %s"%(index[0], counts[index[0]]))
                     index[0] += 1
-                elif line or line.endswith('\n'):
+                elif line or line.endswith(b'\n'):
                     counts[index[0]] += 1
 
             print("Files should have 1, 10000, and 100000 lines")
