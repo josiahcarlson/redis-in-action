@@ -43,6 +43,7 @@
                 <li><a href="#5">Chapter 5</a><br/>
                     <ul class="ns">
                         <li><a href="#5.1.2">Section 5.1.2</a>, Page 93, <a href="#l5.2">Listing 5.2</a></li>
+                        <li><a href="#5.2.2">Section 5.2.2</a>, Page 99, <a href="#l5.6">Listing 5.6</a></li>
                     </ul>
                 </li>
                 <li><a href="#6">Chapter 6</a><br/>
@@ -81,6 +82,7 @@
             </ul>
             <h3>Recent updates</h3>
             <ul>
+                <li>2019/09/14 - <a href="#5">Chapter 5</a>, <a href="#5.2.2">Section 5.2.2</a>, Page 99, <a href="#l5.6">Listing 5.6</a></li>
                 <li>2018/08/27 - <a href="#3">Chapter 3</a>, <a href="#3.7">Section 3.7</a>, Page 62, <a href="#l3.16">Exercise: Replacing timestamp <tt>ZSETS</tt> with <tt>EXPIRE</tt></a></li>
                 <li>2017/06/26 - <a href="#2">Chapter 2</a>, <a href="#2.5">Section 2.5</a>, Page 35, <a href="#l2.10">Listing 2.10</a> (not a bug)</li>
                 <li>2017/04/03 - <a href="#9">Chapter 9</a>, <a href="#9.3.3">Section 3.3.3</a>, Page 223-224, <a href="#l9.17">Listing 9.17</a></li>
@@ -191,7 +193,22 @@
             </blockquote>
 
             <p>You can see the change in-context by visiting: <a href="https://goo.gl/UN5kMw">https://goo.gl/UN5kMw</a></p>
+            <h3><a name="5.2.2">Section 5.2.2</a>, Page 99, <a name="l5.6">The <tt>update_stats()</tt> function</a>
+                (2019/09/14)</h3>
+            
+            <p>The handling of the 'existing' variable was not necessarily correct in the case of non-existing keys. More specifically,
+                a line that read:
+            </p>
+<pre>if existing and existing &lt; hour_start:
+</pre>
 
+            <p>Should have read:</p>
+
+<pre>if not existing:
+    pipe.set(start_key, hour_start)
+elif existing &lt; hour_start:
+</pre>
+            <p>You can see the fix in this github pull request: <a href="https://github.com/josiahcarlson/redis-in-action/pull/56/files">https://github.com/josiahcarlson/redis-in-action/pull/56/files</a></p>
 
             <h2><a name=6>Chapter 6</a></h2>
             <h3><a name="6.1.1">Section 6.1.1</a>, Page 113, <a name="l6.2">Listing 6.2</a> (2017/03/07)</h3>
