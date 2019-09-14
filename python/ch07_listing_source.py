@@ -318,14 +318,15 @@ def string_to_score_generic(string, mapping):
 # <start id="zadd-string"/>
 def zadd_string(conn, name, *args, **kwargs):
     pieces = list(args)                         #A
-    for piece in kwargs.items():            #A
+    for piece in kwargs.items():                #A
         pieces.extend(piece)                    #A
 
+    a = {}
     for i, v in enumerate(pieces):
         if i & 1:                               #B
-            pieces[i] = string_to_score(v)      #B
+            a[pieces[i-1]] = string_to_score(v) #B
 
-    return conn.zadd(name, *pieces)             #C
+    return conn.zadd(name, a)                   #C
 # <end id="zadd-string"/>
 #A Combine both types of arguments passed for later modification
 #B Convert string scores to integer scores
@@ -344,26 +345,28 @@ def cpa_to_ecpm(views, actions, cpa):
 
 # <start id="index_ad"/>
 TO_ECPM = {
-    'cpc': cpc_to_ecpm,
-    'cpa': cpa_to_ecpm,
-    'cpm': lambda *args:args[-1],
+    b'cpc': cpc_to_ecpm,
+    b'cpa': cpa_to_ecpm,
+    b'cpm': lambda *args:args[-1],
 }
 
 def index_ad(conn, id, locations, content, type, value):
     pipeline = conn.pipeline(True)                          #A
+    if not isinstance(type, bytes):
+        type = type.encode('latin-1')
 
     for location in locations:
         pipeline.sadd('idx:req:'+location, id)              #B
 
     words = tokenize(content)
     for word in words:                                      #H
-        pipeline.zadd('idx:' + word, id, 0)                 #H
+        pipeline.zadd('idx:' + word, {id: 0})               #H
 
     rvalue = TO_ECPM[type](                                 #C
         1000, AVERAGE_PER_1K.get(type, 1), value)           #C
     pipeline.hset('type:', id, type)                        #D
-    pipeline.zadd('idx:ad:value:', id, rvalue)              #E
-    pipeline.zadd('ad:base_value:', id, value)              #F
+    pipeline.zadd('idx:ad:value:', {id: rvalue})            #E
+    pipeline.zadd('ad:base_value:', {id: value})            #F
     pipeline.sadd('terms:' + id, *list(words))              #G
     pipeline.execute()
 # <end id="index_ad"/>
@@ -447,7 +450,7 @@ def finish_scoring(pipe, matched, base, content):
 def record_targeting_result(conn, target_id, ad_id, words):
     pipeline = conn.pipeline(True)
 
-    terms = conn.smembers('terms:' + ad_id)                 #A
+    terms = conn.smembers(b'terms:' + ad_id)                 #A
     matched = list(words & terms)                           #A
     if matched:
         matched_key = 'terms:matched:%s' % target_id
@@ -457,8 +460,8 @@ def record_targeting_result(conn, target_id, ad_id, words):
     type = conn.hget('type:', ad_id)                        #C
     pipeline.incr('type:%s:views:' % type)                  #C
     for word in matched:                                    #D
-        pipeline.zincrby('views:%s' % ad_id, word)          #D
-    pipeline.zincrby('views:%s' % ad_id, '')                #D
+        pipeline.zincrby('views:%s' % ad_id, 1, word)       #D
+    pipeline.zincrby('views:%s' % ad_id, 1, '')             #D
 
     if not pipeline.execute()[-1] % 100:                    #E
         update_cpms(conn, ad_id)                            #E
@@ -492,7 +495,7 @@ def record_click(conn, target_id, ad_id, action=False):
     matched = list(conn.smembers(match_key))#D
     matched.append('')                      #D
     for word in matched:                    #D
-        pipeline.zincrby(click_key, word)   #D
+        pipeline.zincrby(click_key, 1, word)   #D
     pipeline.execute()
 
     update_cpms(conn, ad_id)                #E
@@ -509,7 +512,7 @@ def update_cpms(conn, ad_id):
     pipeline = conn.pipeline(True)
     pipeline.hget('type:', ad_id)               #A
     pipeline.zscore('ad:base_value:', ad_id)    #A
-    pipeline.smembers('terms:' + ad_id)         #A
+    pipeline.smembers(b'terms:' + ad_id)         #A
     type, base_value, words = pipeline.execute()#A
 
     which = 'clicks'                                        #B
@@ -537,7 +540,7 @@ def update_cpms(conn, ad_id):
         ad_ecpm = conn.zscore('idx:ad:value:', ad_id)               #N
     else:
         ad_ecpm = to_ecpm(ad_views or 1, ad_clicks or 0, base_value)#H
-        pipeline.zadd('idx:ad:value:', ad_id, ad_ecpm)              #H
+        pipeline.zadd('idx:ad:value:', {ad_id: ad_ecpm})            #H
 
     for word in words:
         pipeline.zscore(view_key, word)                             #I
@@ -549,7 +552,7 @@ def update_cpms(conn, ad_id):
 
         word_ecpm = to_ecpm(views or 1, clicks or 0, base_value)    #K
         bonus = word_ecpm - ad_ecpm                                 #L
-        pipeline.zadd('idx:' + word, ad_id, bonus)                  #M
+        pipeline.zadd('idx:' + word, {ad_id: bonus})                #M
     pipeline.execute()
 # <end id="update_cpms"/>
 #A Fetch the type and value of the ad, as well as all of the words in the ad
@@ -591,7 +594,7 @@ def index_job(conn, job_id, skills):
     pipeline = conn.pipeline(True)
     for skill in skills:
         pipeline.sadd('idx:skill:' + skill, job_id)             #A
-    pipeline.zadd('idx:jobs:req', job_id, len(set(skills)))     #B
+    pipeline.zadd('idx:jobs:req', {job_id: len(set(skills))})   #B
     pipeline.execute()
 # <end id="job_search_index"/>
 #A Add the job id to all appropriate skill SETs
@@ -626,7 +629,7 @@ def index_job_levels(conn, job_id, skill_levels):
         level = min(level, SKILL_LEVEL_LIMIT)
         for wlevel in range(level, SKILL_LEVEL_LIMIT+1):
             pipeline.sadd('idx:skill:%s:%s'%(skill,wlevel), job_id)
-    pipeline.zadd('idx:jobs:req', job_id, total_skills)
+    pipeline.zadd('idx:jobs:req', {job_id: total_skills})
     pipeline.execute()
 
 def search_job_levels(conn, skill_levels):
@@ -646,9 +649,9 @@ def index_job_years(conn, job_id, skill_years):
     pipeline = conn.pipeline(True)
     for skill, years in skill_years:
         pipeline.zadd(
-            'idx:skill:%s:years'%skill, job_id, max(years, 0))
+            'idx:skill:%s:years'%skill, {job_id:max(years, 0)})
     pipeline.sadd('idx:jobs:all', job_id)
-    pipeline.zadd('idx:jobs:req', job_id, total_skills)
+    pipeline.zadd('idx:jobs:req', {job_id:total_skills})
     pipeline.execute()
 
 def search_job_years(conn, skill_years):
@@ -713,7 +716,8 @@ class TestCh07(unittest.TestCase):
         self.assertEqual(parse(query), ([[x] for x in query.split()], []))
 
         query = 'test +query without -stopwords'
-        self.assertEqual(parse(query), ([['test', 'query'], ['without']], ['stopwords']))
+        self.assertIn(parse(query), (([['test', 'query'], ['without']], ['stopwords'],),
+                                     ([['query', 'test'], ['without']], ['stopwords'],)))
 
     def test_parse_and_search(self):
         print("And now we are testing search...")
@@ -756,14 +760,14 @@ class TestCh07(unittest.TestCase):
 
         index_document(self.conn, 'test', self.content)
         index_document(self.conn, 'test2', self.content)
-        self.conn.zadd('idx:sort:update', 'test', 12345, 'test2', 54321)
-        self.conn.zadd('idx:sort:votes', 'test', 10, 'test2', 1)
+        self.conn.zadd('idx:sort:update', {'test': 12345, 'test2': 54321})
+        self.conn.zadd('idx:sort:votes', {'test': 10, 'test2': 1})
 
         r = search_and_zsort(self.conn, "content", desc=False)
-        self.assertEqual(r[1], ['test', 'test2'])
+        self.assertEqual(r[1], [b'test', b'test2'])
 
         r = search_and_zsort(self.conn, "content", update=0, vote=1, desc=False)
-        self.assertEqual(r[1], ['test2', 'test'])
+        self.assertEqual(r[1], [b'test2', b'test'])
         print("Which passed!")
 
     def test_string_to_score(self):
@@ -791,18 +795,18 @@ class TestCh07(unittest.TestCase):
 
         for i in range(100):
             ro = target_ads(self.conn, ['USA'], self.content)
-        self.assertEqual(ro[1], '1')
+        self.assertEqual(ro[1], b'1')
 
         r = target_ads(self.conn, ['VA'], 'wooooo')
-        self.assertEqual(r[1], '2')
+        self.assertEqual(r[1], b'2')
 
-        self.assertEqual(self.conn.zrange('idx:ad:value:', 0, -1, withscores=True), [('2', 0.125), ('1', 0.25)])
-        self.assertEqual(self.conn.zrange('ad:base_value:', 0, -1, withscores=True), [('2', 0.125), ('1', 0.25)])
+        self.assertEqual(self.conn.zrange('idx:ad:value:', 0, -1, withscores=True), [(b'2', 0.125), (b'1', 0.25)])
+        self.assertEqual(self.conn.zrange('ad:base_value:', 0, -1, withscores=True), [(b'2', 0.125), (b'1', 0.25)])
 
         record_click(self.conn, ro[0], ro[1])
 
-        self.assertEqual(self.conn.zrange('idx:ad:value:', 0, -1, withscores=True), [('2', 0.125), ('1', 2.5)])
-        self.assertEqual(self.conn.zrange('ad:base_value:', 0, -1, withscores=True), [('2', 0.125), ('1', 0.25)])
+        self.assertEqual(self.conn.zrange('idx:ad:value:', 0, -1, withscores=True), [(b'2', 0.125), (b'1', 2.5)])
+        self.assertEqual(self.conn.zrange('ad:base_value:', 0, -1, withscores=True), [(b'2', 0.125), (b'1', 0.25)])
 
     def test_is_qualified_for_job(self):
         add_job(self.conn, 'test', ['q1', 'q2', 'q3'])
@@ -815,9 +819,9 @@ class TestCh07(unittest.TestCase):
         index_job(self.conn, 'test3', ['q1', 'q3', 'q5'])
 
         self.assertEqual(find_jobs(self.conn, ['q1']), [])
-        self.assertEqual(find_jobs(self.conn, ['q1', 'q3', 'q4']), ['test2'])
-        self.assertEqual(find_jobs(self.conn, ['q1', 'q3', 'q5']), ['test3'])
-        self.assertEqual(find_jobs(self.conn, ['q1', 'q2', 'q3', 'q4', 'q5']), ['test1', 'test2', 'test3'])
+        self.assertEqual(find_jobs(self.conn, ['q1', 'q3', 'q4']), [b'test2'])
+        self.assertEqual(find_jobs(self.conn, ['q1', 'q3', 'q5']), [b'test3'])
+        self.assertEqual(find_jobs(self.conn, ['q1', 'q2', 'q3', 'q4', 'q5']), [b'test1', b'test2', b'test3'])
 
     def test_index_and_find_jobs_levels(self):
         print("now testing find jobs with levels ...")
@@ -825,14 +829,14 @@ class TestCh07(unittest.TestCase):
         index_job_levels(self.conn, "job2", [('q1', 0), ('q2', 2)])
 
         self.assertEqual(search_job_levels(self.conn, [('q1', 0)]), [])
-        self.assertEqual(search_job_levels(self.conn, [('q1', 1)]), ['job1'])
-        self.assertEqual(search_job_levels(self.conn, [('q1', 2)]), ['job1'])
+        self.assertEqual(search_job_levels(self.conn, [('q1', 1)]), [b'job1'])
+        self.assertEqual(search_job_levels(self.conn, [('q1', 2)]), [b'job1'])
         self.assertEqual(search_job_levels(self.conn, [('q2', 1)]), [])
         self.assertEqual(search_job_levels(self.conn, [('q2', 2)]), [])
         self.assertEqual(search_job_levels(self.conn, [('q1', 0), ('q2', 1)]), [])
-        self.assertEqual(search_job_levels(self.conn, [('q1', 0), ('q2', 2)]), ['job2'])
-        self.assertEqual(search_job_levels(self.conn, [('q1', 1), ('q2', 1)]), ['job1'])
-        self.assertEqual(search_job_levels(self.conn, [('q1', 1), ('q2', 2)]), ['job1', 'job2'])
+        self.assertEqual(search_job_levels(self.conn, [('q1', 0), ('q2', 2)]), [b'job2'])
+        self.assertEqual(search_job_levels(self.conn, [('q1', 1), ('q2', 1)]), [b'job1'])
+        self.assertEqual(search_job_levels(self.conn, [('q1', 1), ('q2', 2)]), [b'job1', b'job2'])
         print("which passed")
 
     def test_index_and_find_jobs_years(self):
@@ -841,14 +845,14 @@ class TestCh07(unittest.TestCase):
         index_job_years(self.conn, "job2",[('q1',0),('q2',2)])
 
         self.assertEqual(search_job_years(self.conn, [('q1',0)]), [])
-        self.assertEqual(search_job_years(self.conn, [('q1',1)]), ['job1'])
-        self.assertEqual(search_job_years(self.conn, [('q1',2)]), ['job1'])
+        self.assertEqual(search_job_years(self.conn, [('q1',1)]), [b'job1'])
+        self.assertEqual(search_job_years(self.conn, [('q1',2)]), [b'job1'])
         self.assertEqual(search_job_years(self.conn, [('q2',1)]), [])
         self.assertEqual(search_job_years(self.conn, [('q2',2)]), [])
         self.assertEqual(search_job_years(self.conn, [('q1',0), ('q2', 1)]), [])
-        self.assertEqual(search_job_years(self.conn, [('q1',0), ('q2', 2)]), ['job2'])
-        self.assertEqual(search_job_years(self.conn, [('q1',1), ('q2', 1)]), ['job1'])
-        self.assertEqual(search_job_years(self.conn, [('q1',1), ('q2', 2)]), ['job1','job2'])
+        self.assertEqual(search_job_years(self.conn, [('q1',0), ('q2', 2)]), [b'job2'])
+        self.assertEqual(search_job_years(self.conn, [('q1',1), ('q2', 1)]), [b'job1'])
+        self.assertEqual(search_job_years(self.conn, [('q1',1), ('q2', 2)]), [b'job1',b'job2'])
         print("which passed")
 
 if __name__ == '__main__':

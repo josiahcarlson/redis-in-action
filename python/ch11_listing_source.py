@@ -688,6 +688,7 @@ class TestCh11(unittest.TestCase):
                 results.append(sharded_blpop(conn, lst, timeout))
         
         t = threading.Thread(target=pop_some, args=(self.conn, sharded_blpop, 'lst3', 10, 1))
+        t.daemon = True
         t.start()
         
         self.assertEqual(sharded_rpush(self.conn, 'lst3', *list(range(4))), 4)
