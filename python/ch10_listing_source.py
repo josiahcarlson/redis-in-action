@@ -19,7 +19,8 @@ CHECKED = {}
 def get_config(conn, type, component, wait=1):
     key = 'config:%s:%s'%(type, component)
 
-    if CHECKED.get(key) < time.time() - wait:           #A
+    t = CHECKED.get(key)
+    if (not t) or t < time.time() - wait:               #A
         CHECKED[key] = time.time()                      #B
         config = json.loads(conn.get(key) or '{}')      #C
         config = dict((str(k), config[k]) for k in config)
@@ -42,9 +43,7 @@ def redis_connection(component, wait=1):                        #A
             _config = get_config(                               #G
                 config_connection, 'redis', component, wait)    #G
 
-            config = {}
-            for k, v in _config.items():                    #L
-                config[k.encode('utf-8')] = v                   #L
+            config = _config
 
             if config != old_config:                            #H
                 REDIS_CONNECTIONS[key] = redis.Redis(**config)  #H
@@ -134,6 +133,8 @@ def shard_key(base, key, total_elements, shard_size):   #A
     if isinstance(key, int) or key.isdigit():   #B
         shard_id = int(str(key), 10) // shard_size      #C
     else:
+        if isinstance(key, str):
+            key = key.encode('latin-1')
         shards = 2 * total_elements // shard_size       #D
         shard_id = binascii.crc32(key) % shards         #E
     return "%s:%s"%(base, shard_id)                     #F
@@ -238,6 +239,8 @@ def search_get_values(conn, query, id=None, ttl=300, sort="-updated", #A
 
     pipe = conn.pipeline(False)
     for docid in docids:                                            #C
+        if isinstance(docid, bytes):
+            docid = docid.decode('latin-1')
         pipe.hget(key%docid, sort)                                  #C
     sort_column = pipe.execute()                                    #C
 
@@ -438,8 +441,8 @@ def follow_user(conn, uid, other_uid):
     now = time.time()
 
     pipeline = conn.pipeline(True)
-    pipeline.zadd(fkey1, other_uid, now)
-    pipeline.zadd(fkey2, uid, now)
+    pipeline.zadd(fkey1, {other_uid: now})
+    pipeline.zadd(fkey2, {uid: now})
     pipeline.zcard(fkey1)
     pipeline.zcard(fkey2)
     following, followers = pipeline.execute()[-2:]
@@ -454,7 +457,7 @@ def follow_user(conn, uid, other_uid):
     if status_and_score:
         hkey = 'home:%s'%uid
         pipe = sharded_timelines[hkey].pipeline(True)       #C
-        pipe.zadd(hkey, **dict(status_and_score))           #D
+        pipe.zadd(hkey, dict(status_and_score))           #D
         pipe.zremrangebyrank(hkey, 0, -HOME_TIMELINE_SIZE-1)#D
         pipe.execute()                                      #E
 
@@ -504,8 +507,8 @@ def follow_user(conn, uid, other_uid):
 
     now = time.time()
     spipe = sconn.pipeline(True)
-    spipe.zadd(fkey1, other_uid, now)                   #D
-    spipe.zadd(fkey2, uid, now)                         #D
+    spipe.zadd(fkey1, {other_uid: now})                   #D
+    spipe.zadd(fkey2, {uid: now})                         #D
     following, followers = spipe.execute()
 
     pipeline = conn.pipeline(True)
@@ -520,7 +523,7 @@ def follow_user(conn, uid, other_uid):
     if status_and_score:
         hkey = 'home:%s'%uid
         pipe = sharded_timelines[hkey].pipeline(True)
-        pipe.zadd(hkey, **dict(status_and_score))
+        pipe.zadd(hkey, dict(status_and_score))
         pipe.zremrangebyrank(hkey, 0, -HOME_TIMELINE_SIZE-1)
         pipe.execute()
 
@@ -577,7 +580,7 @@ def syndicate_status(uid, post, start=0, on_lists=False):
     for timelines in to_send.values():
         pipe = sharded_timelines[timelines[0]].pipeline(False)  #F
         for timeline in timelines:
-            pipe.zadd(timeline, **post)                 #G
+            pipe.zadd(timeline, post)                 #G
             pipe.zremrangebyrank(                       #G
                 timeline, 0, -HOME_TIMELINE_SIZE-1)     #G
         pipe.execute()
@@ -653,7 +656,7 @@ class TestCh10(unittest.TestCase):
                 cnt = conn.scard(k)
                 total += cnt
         self.assertEqual(total, 100)
-        self.assertEqual(self.conn.get(base), '100')
+        self.assertEqual(self.conn.get(base), b'100')
 
     def test_sharded_search(self):
         _fake_shards_for(self.conn, 'search', 2, 2)
@@ -663,7 +666,7 @@ class TestCh10(unittest.TestCase):
             c = get_sharded_connection('search', i, 2)
             index_document(c, i, docs[i&1], {'updated':time.time() + i, 'id':i, 'created':time.time() + i})
             r = search_and_sort(c, docs[i&1], sort='-id')
-            self.assertEqual(r[1][0], str(i))
+            self.assertEqual(r[1][0], str(i).encode())
 
         total = 0
         for shard in (0,1):
@@ -684,19 +687,21 @@ class TestCh10(unittest.TestCase):
         self.assertEqual(count, 25)
         self.assertEqual(count, len(r))
         r.sort(key=lambda x:x[1], reverse=True)
-        r = list(zip(*r)[0])
+        r = list(zip(*r))[0]
         
         count, r2, id = search_shards('search', 2, ['this', 'doing'])
         self.assertEqual(count, 25)
         self.assertEqual(len(r2), 20)
-        self.assertEqual(r2, r[:20])
+        sr2 = set(r2)
+        sr = set(r)
+        self.assertEqual(len(sr2 & sr), len(sr2))
         
     def test_sharded_follow_user(self):
         _fake_shards_for(self.conn, 'timelines', 8, 4)
 
-        sharded_timelines['profile:1'].zadd('profile:1', 1, time.time())
+        sharded_timelines['profile:1'].zadd('profile:1', {1: time.time()})
         for u2 in range(2, 11):
-            sharded_timelines['profile:%i'%u2].zadd('profile:%i'%u2, u2, time.time() + u2)
+            sharded_timelines['profile:%i'%u2].zadd('profile:%i'%u2, {u2: time.time() + u2})
             _follow_user(self.conn, 1, u2)
             _follow_user(self.conn, u2, 1)
         
@@ -716,9 +721,9 @@ class TestCh10(unittest.TestCase):
         _fake_shards_for(self.conn, 'followers', 4, 4)
         sharded_followers.shards = 4
     
-        sharded_timelines['profile:1'].zadd('profile:1', 1, time.time())
+        sharded_timelines['profile:1'].zadd('profile:1', {1: time.time()})
         for u2 in range(2, 11):
-            sharded_timelines['profile:%i'%u2].zadd('profile:%i'%u2, u2, time.time() + u2)
+            sharded_timelines['profile:%i'%u2].zadd('profile:%i'%u2, {u2: time.time() + u2})
             follow_user(self.conn, 1, u2)
             follow_user(self.conn, u2, 1)
         
@@ -729,15 +734,15 @@ class TestCh10(unittest.TestCase):
                 allkeys[k] += c.zcard(k)
 
         for k, v in allkeys.items():
-            part, _, owner = k.partition(':')
-            if part in ('following', 'followers', 'home'):
-                self.assertEqual(v, 9 if owner == '1' else 1)
-            elif part == 'profile':
+            part, _, owner = k.partition(b':')
+            if part in (b'following', b'followers', b'home'):
+                self.assertEqual(v, 9 if owner == b'1' else 1)
+            elif part == b'profile':
                 self.assertEqual(v, 1)
 
         self.assertEqual(len(sharded_zrangebyscore('followers', 4, 'followers:1', '0', 'inf', 100)), 9)
         syndicate_status(1, {'11':time.time()})
-        self.assertEqual(len(sharded_zrangebyscore('timelines', 4, 'home:2', '0', 'inf', 100)), 2)
+        self.assertEqual(len(sharded_zrangebyscore('timelines', 8, 'home:2', '0', 'inf', 100)), 2)
 
 
 
