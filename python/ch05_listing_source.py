@@ -209,11 +209,14 @@ def update_stats(conn, context, type, value, timeout=5):
 
             existing = pipe.get(start_key)
             pipe.multi()
-            if existing and existing < hour_start:
+            
+            if not existing:
+                pipe.set(start_key, hour_start)
+            elif existing < hour_start:
                 pipe.rename(destination, destination + ':last') #B
                 pipe.rename(start_key, destination + ':pstart') #B
                 pipe.set(start_key, hour_start)                 #B
-
+ 
             tkey1 = str(uuid.uuid4())
             tkey2 = str(uuid.uuid4())
             pipe.zadd(tkey1, 'min', value)                      #C
