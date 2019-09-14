@@ -55,7 +55,7 @@ def process_logs(conn, path, callback):                     #K
 
         for lno, line in enumerate(inp):                    #L
             callback(pipe, line)                            #E
-            offset += int(offset) + len(line)               #F
+            offset = int(offset) + len(line)               #F
 
             if not (lno+1) % 1000:                          #G
                 update_progress()                           #G
