@@ -165,7 +165,7 @@ def acquire_lock_with_timeout(
     end = time.time() + acquire_timeout
     while time.time() < end and not acquired:
         acquired = acquire_lock_with_timeout_lua(                   #A
-            conn, [lockname], [lock_timeout, identifier]) == 'OK'   #A
+            conn, [lockname], [lock_timeout, identifier]) == b'OK'  #A
     
         time.sleep(.001 * (not acquired))
     
@@ -228,7 +228,7 @@ def acquire_semaphore(conn, semname, limit, timeout=10):
 
     pipeline = conn.pipeline(True)
     pipeline.zremrangebyscore(semname, '-inf', now - timeout)  #B
-    pipeline.zadd(semname, identifier, now)                    #C
+    pipeline.zadd(semname, {identifier:now})                   #C
     pipeline.zrank(semname, identifier)                        #D
     if pipeline.execute()[-1] < limit:                         #D
         return identifier
@@ -316,7 +316,7 @@ def autocomplete_on_prefix(conn, guild, prefix):
         except redis.exceptions.WatchError:                #E
             continue                                       #E
 
-    return [item for item in items if '{' not in item]     #F
+    return [item for item in items if b'{' not in item]     #F
 # <end id="old-autocomplete-code"/>
 #A Find the start/end range for the prefix
 #B Add the start/end range items to the ZSET
@@ -336,7 +336,7 @@ def autocomplete_on_prefix(conn, guild, prefix):
         ['members:' + guild],                               #B
         [start+identifier, end+identifier])                 #B
     
-    return [item for item in items if '{' not in item]      #C
+    return [item for item in items if b'{' not in item]      #C
 
 autocomplete_on_prefix_lua = script_load('''
 redis.call('zadd', KEYS[1], 0, ARGV[1], 0, ARGV[2])             --D
@@ -434,6 +434,10 @@ if redis.call('sismember', KEYS[1], ARGV[1]) ~= 0 then
 end
 ''')
 
+# need to get this from Redis via:
+#   config get list-max-ziplist-entries
+LIST_CHUNK_SIZE = 512
+
 # <start id="sharded-list-push"/>
 def sharded_push_helper(conn, key, *items, **kwargs):
     items = list(items)                                 #A
@@ -441,7 +445,7 @@ def sharded_push_helper(conn, key, *items, **kwargs):
     while items:                                        #B
         pushed = sharded_push_lua(conn,                 #C
             [key+':', key+':first', key+':last'],       #C
-            [kwargs['cmd']] + items[:64])               #D
+            [LIST_CHUNK_SIZE, kwargs['cmd']] + items[:64])#D
         total += pushed                                 #E
         del items[:pushed]                              #F
     return total                                        #G
@@ -453,21 +457,20 @@ def sharded_rpush(conn, key, *items):
     return sharded_push_helper(conn, key, *items, cmd='rpush')#H
 
 sharded_push_lua = script_load('''
-local max = tonumber(redis.call(                            --I
-    'config', 'get', 'list-max-ziplist-entries')[2])        --I
-if #ARGV < 2 or max < 2 then return 0 end                   --J
+local max = tonumber(ARGV[1])                               --I
+if #ARGV < 3 or max < 2 then return 0 end                   --J
 
-local skey = ARGV[1] == 'lpush' and KEYS[2] or KEYS[3]      --K
+local skey = ARGV[2] == 'lpush' and KEYS[2] or KEYS[3]      --K
 local shard = redis.call('get', skey) or '0'                --K
 
 while 1 do
     local current = tonumber(redis.call('llen', KEYS[1]..shard))    --L
-    local topush = math.min(#ARGV - 1, max - current - 1)           --M
+    local topush = math.min(#ARGV - 2, max - current - 1)           --M
     if topush > 0 then                                              --N
-        redis.call(ARGV[1], KEYS[1]..shard, unpack(ARGV, 2, topush+1))--N
+        redis.call(ARGV[2], KEYS[1]..shard, unpack(ARGV, 3, topush+2))--N
         return topush                                                 --N
     end
-    shard = redis.call(ARGV[1] == 'lpush' and 'decr' or 'incr', skey) --O
+    shard = redis.call(ARGV[2] == 'lpush' and 'decr' or 'incr', skey) --O
 end
 ''')
 # <end id="sharded-list-push"/>
@@ -489,11 +492,10 @@ end
 #END
 
 def sharded_llen(conn, key):
-    return sharded_llen_lua(conn, [key+':', key+':first', key+':last'])
+    return sharded_llen_lua(conn, [key+':', key+':first', key+':last'], [LIST_CHUNK_SIZE])
 
 sharded_llen_lua = script_load('''
-local shardsize = tonumber(redis.call(
-    'config', 'get', 'list-max-ziplist-entries')[2])
+local shardsize = tonumber(ARGV[1])
 
 local first = tonumber(redis.call('get', KEYS[2]) or '0')
 local last = tonumber(redis.call('get', KEYS[3]) or '0')
@@ -617,11 +619,11 @@ class TestCh11(unittest.TestCase):
         sid = _create_status(self.conn, 1, 'hello')
         sid2 = create_status(self.conn, 1, 'hello')
         
-        self.assertEqual(self.conn.hget('user:1', 'posts'), '2')
+        self.assertEqual(self.conn.hget('user:1', 'posts'), b'2')
         data = self.conn.hgetall('status:%s'%sid)
         data2 = self.conn.hgetall('status:%s'%sid2)
-        data.pop('posted'); data.pop('id')
-        data2.pop('posted'); data2.pop('id')
+        data.pop(b'posted'); data.pop(b'id')
+        data2.pop(b'posted'); data2.pop(b'id')
         self.assertEqual(data, data2)
 
     def test_locking(self):
@@ -649,11 +651,11 @@ class TestCh11(unittest.TestCase):
 
     def test_autocomplet_on_prefix(self):
         for word in 'these are some words that we will be autocompleting on'.split():
-            self.conn.zadd('members:test', word, 0)
+            self.conn.zadd('members:test', {word:0})
         
-        self.assertEqual(autocomplete_on_prefix(self.conn, 'test', 'th'), ['that', 'these'])
-        self.assertEqual(autocomplete_on_prefix(self.conn, 'test', 'w'), ['we', 'will', 'words'])
-        self.assertEqual(autocomplete_on_prefix(self.conn, 'test', 'autocompleting'), ['autocompleting'])
+        self.assertEqual(autocomplete_on_prefix(self.conn, 'test', 'th'), [b'that', b'these'])
+        self.assertEqual(autocomplete_on_prefix(self.conn, 'test', 'w'), [b'we', b'will', b'words'])
+        self.assertEqual(autocomplete_on_prefix(self.conn, 'test', 'autocompleting'), [b'autocompleting'])
 
     def test_marketplace(self):
         self.conn.sadd('inventory:1', '1')
@@ -661,7 +663,7 @@ class TestCh11(unittest.TestCase):
         self.assertFalse(list_item(self.conn, 2, 1, 10))
         self.assertTrue(list_item(self.conn, 1, 1, 10))
         self.assertFalse(purchase_item(self.conn, 2, '1', 1))
-        self.conn.zadd('market:', '1.1', 4)
+        self.conn.zadd('market:', {'1.1':4})
         self.assertTrue(purchase_item(self.conn, 2, '1', 1))
 
     def test_sharded_list(self):
@@ -673,12 +675,12 @@ class TestCh11(unittest.TestCase):
         self.assertEqual(sharded_rpush(self.conn, 'lst2', *list(range(-1, -1001, -1))), 1000)
         self.assertEqual(sharded_llen(self.conn, 'lst2'), 2000)
 
-        self.assertEqual(sharded_lpop(self.conn, 'lst2'), '999')
-        self.assertEqual(sharded_rpop(self.conn, 'lst2'), '-1000')
+        self.assertEqual(sharded_lpop(self.conn, 'lst2'), b'999')
+        self.assertEqual(sharded_rpop(self.conn, 'lst2'), b'-1000')
         
         for i in range(999):
             r = sharded_lpop(self.conn, 'lst2')
-        self.assertEqual(r, '0')
+        self.assertEqual(r, b'0')
 
         results = []
         def pop_some(conn, fcn, lst, count, timeout):
@@ -686,14 +688,13 @@ class TestCh11(unittest.TestCase):
                 results.append(sharded_blpop(conn, lst, timeout))
         
         t = threading.Thread(target=pop_some, args=(self.conn, sharded_blpop, 'lst3', 10, 1))
-        t.setDaemon(1)
         t.start()
         
         self.assertEqual(sharded_rpush(self.conn, 'lst3', *list(range(4))), 4)
         time.sleep(2)
         self.assertEqual(sharded_rpush(self.conn, 'lst3', *list(range(4, 8))), 4)
         time.sleep(2)
-        self.assertEqual(results, ['0', '1', '2', '3', None, '4', '5', '6', '7', None])
+        self.assertEqual(results, [b'0', b'1', b'2', b'3', None, b'4', b'5', b'6', b'7', None])
 
 if __name__ == '__main__':
     unittest.main()

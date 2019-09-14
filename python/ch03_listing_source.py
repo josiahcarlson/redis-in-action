@@ -523,7 +523,7 @@ def get_articles(conn, page, order='score:'):
     ids = conn.zrevrangebyscore(order, start, end)
 
     pipeline = conn.pipeline()
-    list(map(pipeline.hgetall, ids))                              #A
+    all(map(pipeline.hgetall, ids))                         #A
 
     articles = []
     for id, article_data in zip(ids, pipeline.execute()):   #B

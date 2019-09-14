@@ -688,22 +688,22 @@ class TestCh07(unittest.TestCase):
         r = index_document(self.conn, 'test', self.content)
         self.assertEqual(r, len(tokens))
         for t in tokens:
-            self.assertEqual(self.conn.smembers('idx:' + t), set(['test']))
+            self.assertEqual(self.conn.smembers('idx:' + t), set([b'test']))
 
     def test_set_operations(self):
         index_document(self.conn, 'test', self.content)
 
         r = intersect(self.conn, ['content', 'indexed'])
-        self.assertEqual(self.conn.smembers('idx:' + r), set(['test']))
+        self.assertEqual(self.conn.smembers('idx:' + r), set([b'test']))
 
         r = intersect(self.conn, ['content', 'ignored'])
         self.assertEqual(self.conn.smembers('idx:' + r), set())
 
         r = union(self.conn, ['content', 'ignored'])
-        self.assertEqual(self.conn.smembers('idx:' + r), set(['test']))
+        self.assertEqual(self.conn.smembers('idx:' + r), set([b'test']))
 
         r = difference(self.conn, ['content', 'ignored'])
-        self.assertEqual(self.conn.smembers('idx:' + r), set(['test']))
+        self.assertEqual(self.conn.smembers('idx:' + r), set([b'test']))
 
         r = difference(self.conn, ['content', 'indexed'])
         self.assertEqual(self.conn.smembers('idx:' + r), set())
@@ -720,16 +720,16 @@ class TestCh07(unittest.TestCase):
         index_document(self.conn, 'test', self.content)
 
         r = parse_and_search(self.conn, 'content')
-        self.assertEqual(self.conn.smembers('idx:' + r), set(['test']))
+        self.assertEqual(self.conn.smembers('idx:' + r), set([b'test']))
 
         r = parse_and_search(self.conn, 'content indexed random')
-        self.assertEqual(self.conn.smembers('idx:' + r), set(['test']))
+        self.assertEqual(self.conn.smembers('idx:' + r), set([b'test']))
 
         r = parse_and_search(self.conn, 'content +indexed random')
-        self.assertEqual(self.conn.smembers('idx:' + r), set(['test']))
+        self.assertEqual(self.conn.smembers('idx:' + r), set([b'test']))
 
         r = parse_and_search(self.conn, 'content indexed +random')
-        self.assertEqual(self.conn.smembers('idx:' + r), set(['test']))
+        self.assertEqual(self.conn.smembers('idx:' + r), set([b'test']))
 
         r = parse_and_search(self.conn, 'content indexed -random')
         self.assertEqual(self.conn.smembers('idx:' + r), set())
@@ -745,10 +745,10 @@ class TestCh07(unittest.TestCase):
         self.conn.hmset('kb:doc:test2', {'updated': 54321, 'id': 1})
 
         r = search_and_sort(self.conn, "content")
-        self.assertEqual(r[1], ['test2', 'test'])
+        self.assertEqual(r[1], [b'test2', b'test'])
 
         r = search_and_sort(self.conn, "content", sort='-id')
-        self.assertEqual(r[1], ['test', 'test2'])
+        self.assertEqual(r[1], [b'test', b'test2'])
         print("Which passed!")
 
     def test_search_with_zsort(self):
