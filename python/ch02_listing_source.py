@@ -3,7 +3,7 @@ import json
 import threading
 import time
 import unittest
-import urlparse
+import urllib.parse
 import uuid
 
 # <start id="_1311_14471_8266"/>
@@ -196,13 +196,13 @@ def can_cache(conn, request):
 #--------------- Below this line are helpers to test the code ----------------
 
 def extract_item_id(request):
-    parsed = urlparse.urlparse(request)
-    query = urlparse.parse_qs(parsed.query)
+    parsed = urllib.parse.urlparse(request)
+    query = urllib.parse.parse_qs(parsed.query)
     return (query.get('item') or [None])[0]
 
 def is_dynamic(request):
-    parsed = urlparse.urlparse(request)
-    query = urlparse.parse_qs(parsed.query)
+    parsed = urllib.parse.urlparse(request)
+    query = urllib.parse.parse_qs(parsed.query)
     return '_' in query
 
 def hash_request(request):
@@ -236,8 +236,8 @@ class TestCh02(unittest.TestCase):
         global QUIT, LIMIT
         QUIT = False
         LIMIT = 10000000
-        print
-        print
+        print()
+        print()
 
     def test_login_cookies(self):
         conn = self.conn
@@ -245,19 +245,19 @@ class TestCh02(unittest.TestCase):
         token = str(uuid.uuid4())
 
         update_token(conn, token, 'username', 'itemX')
-        print "We just logged-in/updated token:", token
-        print "For user:", 'username'
-        print
+        print("We just logged-in/updated token:", token)
+        print("For user:", 'username')
+        print()
 
-        print "What username do we get when we look-up that token?"
+        print("What username do we get when we look-up that token?")
         r = check_token(conn, token)
-        print r
-        print
+        print(r)
+        print()
         self.assertTrue(r)
 
 
-        print "Let's drop the maximum number of cookies to 0 to clean them out"
-        print "We will start a thread to do the cleaning, while we stop it later"
+        print("Let's drop the maximum number of cookies to 0 to clean them out")
+        print("We will start a thread to do the cleaning, while we stop it later")
 
         LIMIT = 0
         t = threading.Thread(target=clean_sessions, args=(conn,))
@@ -270,7 +270,7 @@ class TestCh02(unittest.TestCase):
             raise Exception("The clean sessions thread is still alive?!?")
 
         s = conn.hlen('login:')
-        print "The current number of sessions still available is:", s
+        print("The current number of sessions still available is:", s)
         self.assertFalse(s)
 
     def test_shopping_cart_cookies(self):
@@ -278,17 +278,17 @@ class TestCh02(unittest.TestCase):
         global LIMIT, QUIT
         token = str(uuid.uuid4())
 
-        print "We'll refresh our session..."
+        print("We'll refresh our session...")
         update_token(conn, token, 'username', 'itemX')
-        print "And add an item to the shopping cart"
+        print("And add an item to the shopping cart")
         add_to_cart(conn, token, "itemY", 3)
         r = conn.hgetall('cart:' + token)
-        print "Our shopping cart currently has:", r
-        print
+        print("Our shopping cart currently has:", r)
+        print()
 
         self.assertTrue(len(r) >= 1)
 
-        print "Let's clean out our sessions and carts"
+        print("Let's clean out our sessions and carts")
         LIMIT = 0
         t = threading.Thread(target=clean_full_sessions, args=(conn,))
         t.setDaemon(1) # to make sure it dies if we ctrl+C quit
@@ -300,7 +300,7 @@ class TestCh02(unittest.TestCase):
             raise Exception("The clean sessions thread is still alive?!?")
 
         r = conn.hgetall('cart:' + token)
-        print "Our shopping cart now contains:", r
+        print("Our shopping cart now contains:", r)
 
         self.assertFalse(r)
 
@@ -313,18 +313,18 @@ class TestCh02(unittest.TestCase):
 
         update_token(conn, token, 'username', 'itemX')
         url = 'http://test.com/?item=itemX'
-        print "We are going to cache a simple request against", url
+        print("We are going to cache a simple request against", url)
         result = cache_request(conn, url, callback)
-        print "We got initial content:", repr(result)
-        print
+        print("We got initial content:", repr(result))
+        print()
 
         self.assertTrue(result)
 
-        print "To test that we've cached the request, we'll pass a bad callback"
+        print("To test that we've cached the request, we'll pass a bad callback")
         result2 = cache_request(conn, url, None)
-        print "We ended up getting the same response!", repr(result2)
+        print("We ended up getting the same response!", repr(result2))
 
-        self.assertEquals(result, result2)
+        self.assertEqual(result, result2)
 
         self.assertFalse(can_cache(conn, 'http://test.com/'))
         self.assertFalse(can_cache(conn, 'http://test.com/?item=itemX&_=1234536'))
@@ -334,39 +334,39 @@ class TestCh02(unittest.TestCase):
         conn = self.conn
         global QUIT
         
-        print "First, let's schedule caching of itemX every 5 seconds"
+        print("First, let's schedule caching of itemX every 5 seconds")
         schedule_row_cache(conn, 'itemX', 5)
-        print "Our schedule looks like:"
+        print("Our schedule looks like:")
         s = conn.zrange('schedule:', 0, -1, withscores=True)
         pprint.pprint(s)
         self.assertTrue(s)
 
-        print "We'll start a caching thread that will cache the data..."
+        print("We'll start a caching thread that will cache the data...")
         t = threading.Thread(target=cache_rows, args=(conn,))
         t.setDaemon(1)
         t.start()
 
         time.sleep(1)
-        print "Our cached data looks like:"
+        print("Our cached data looks like:")
         r = conn.get('inv:itemX')
-        print repr(r)
+        print(repr(r))
         self.assertTrue(r)
-        print
-        print "We'll check again in 5 seconds..."
+        print()
+        print("We'll check again in 5 seconds...")
         time.sleep(5)
-        print "Notice that the data has changed..."
+        print("Notice that the data has changed...")
         r2 = conn.get('inv:itemX')
-        print repr(r2)
-        print
+        print(repr(r2))
+        print()
         self.assertTrue(r2)
         self.assertTrue(r != r2)
 
-        print "Let's force un-caching"
+        print("Let's force un-caching")
         schedule_row_cache(conn, 'itemX', -1)
         time.sleep(1)
         r = conn.get('inv:itemX')
-        print "The cache was cleared?", not r
-        print
+        print("The cache was cleared?", not r)
+        print()
         self.assertFalse(r)
 
         QUIT = True

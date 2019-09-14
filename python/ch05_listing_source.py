@@ -27,7 +27,7 @@ SEVERITY = {                                                    #A
     logging.ERROR: 'error',                                     #A
     logging.CRITICAL: 'critical',                               #A
 }                                                               #A
-SEVERITY.update((name, name) for name in SEVERITY.values())     #A
+SEVERITY.update((name, name) for name in list(SEVERITY.values()))     #A
 
 def log_recent(conn, name, message, severity=logging.INFO, pipe=None):
     severity = str(SEVERITY.get(severity, severity)).lower()    #B
@@ -119,7 +119,7 @@ def get_counter(conn, name, precision):
     hash = '%s:%s'%(precision, name)                #A
     data = conn.hgetall('count:' + hash)            #B
     to_return = []                                  #C
-    for key, value in data.iteritems():             #C
+    for key, value in data.items():             #C
         to_return.append((int(key), int(value)))    #C
     to_return.sort()                                #D
     return to_return
@@ -150,7 +150,7 @@ def clean_counters(conn):
 
             hkey = 'count:' + hash
             cutoff = time.time() - SAMPLE_COUNT * prec          #J
-            samples = map(int, conn.hkeys(hkey))                #K
+            samples = list(map(int, conn.hkeys(hkey)))                #K
             samples.sort()                                      #L
             remove = bisect.bisect_right(samples, cutoff)       #L
 
@@ -434,7 +434,7 @@ def redis_connection(component, wait=1):                        #A
                 config_connection, 'redis', component, wait)    #G
 
             config = {}
-            for k, v in _config.iteritems():                    #L
+            for k, v in _config.items():                    #L
                 config[k.encode('utf-8')] = v                   #L
 
             if config != old_config:                            #H
@@ -529,19 +529,19 @@ class TestCh05(unittest.TestCase):
         config_connection = None
         QUIT = False
         SAMPLE_COUNT = 100
-        print
-        print
+        print()
+        print()
 
     def test_log_recent(self):
         import pprint
         conn = self.conn
 
-        print "Let's write a few logs to the recent log"
-        for msg in xrange(5):
+        print("Let's write a few logs to the recent log")
+        for msg in range(5):
             log_recent(conn, 'test', 'this is message %s'%msg)
         recent = conn.lrange('recent:test:info', 0, -1)
-        print "The current recent message log has this many messages:", len(recent)
-        print "Those messages include:"
+        print("The current recent message log has this many messages:", len(recent))
+        print("Those messages include:")
         pprint.pprint(recent[:10])
         self.assertTrue(len(recent) >= 5)
 
@@ -549,13 +549,13 @@ class TestCh05(unittest.TestCase):
         import pprint
         conn = self.conn
 
-        print "Let's write some items to the common log"
-        for count in xrange(1, 6):
-            for i in xrange(count):
+        print("Let's write some items to the common log")
+        for count in range(1, 6):
+            for i in range(count):
                 log_common(conn, 'test', "message-%s"%count)
         common = conn.zrevrange('common:test:info', 0, -1, withscores=True)
-        print "The current number of common messages is:", len(common)
-        print "Those common messages are:"
+        print("The current number of common messages is:", len(common))
+        print("Those common messages are:")
         pprint.pprint(common)
         self.assertTrue(len(common) >= 5)
 
@@ -564,26 +564,26 @@ class TestCh05(unittest.TestCase):
         global QUIT, SAMPLE_COUNT
         conn = self.conn
 
-        print "Let's update some counters for now and a little in the future"
+        print("Let's update some counters for now and a little in the future")
         now = time.time()
-        for delta in xrange(10):
+        for delta in range(10):
             update_counter(conn, 'test', count=random.randrange(1,5), now=now+delta)
         counter = get_counter(conn, 'test', 1)
-        print "We have some per-second counters:", len(counter)
+        print("We have some per-second counters:", len(counter))
         self.assertTrue(len(counter) >= 10)
         counter = get_counter(conn, 'test', 5)
-        print "We have some per-5-second counters:", len(counter)
-        print "These counters include:"
+        print("We have some per-5-second counters:", len(counter))
+        print("These counters include:")
         pprint.pprint(counter[:10])
         self.assertTrue(len(counter) >= 2)
-        print
+        print()
 
         tt = time.time
         def new_tt():
             return tt() + 2*86400
         time.time = new_tt
 
-        print "Let's clean out some counters by setting our sample count to 0"
+        print("Let's clean out some counters by setting our sample count to 0")
         SAMPLE_COUNT = 0
         t = threading.Thread(target=clean_counters, args=(conn,))
         t.setDaemon(1) # to make sure it dies if we ctrl+C quit
@@ -592,19 +592,19 @@ class TestCh05(unittest.TestCase):
         QUIT = True
         time.time = tt
         counter = get_counter(conn, 'test', 86400)
-        print "Did we clean out all of the counters?", not counter
+        print("Did we clean out all of the counters?", not counter)
         self.assertFalse(counter)
 
     def test_stats(self):
         import pprint
         conn = self.conn
 
-        print "Let's add some data for our statistics!"
-        for i in xrange(5):
+        print("Let's add some data for our statistics!")
+        for i in range(5):
             r = update_stats(conn, 'temp', 'example', random.randrange(5, 15))
-        print "We have some aggregate statistics:", r
+        print("We have some aggregate statistics:", r)
         rr = get_stats(conn, 'temp', 'example')
-        print "Which we can also fetch manually:"
+        print("Which we can also fetch manually:")
         pprint.pprint(rr)
         self.assertTrue(rr['count'] >= 5)
 
@@ -612,24 +612,24 @@ class TestCh05(unittest.TestCase):
         import pprint
         conn = self.conn
 
-        print "Let's calculate some access times..."
-        for i in xrange(10):
+        print("Let's calculate some access times...")
+        for i in range(10):
             with access_time(conn, "req-%s"%i):
                 time.sleep(.5 + random.random())
-        print "The slowest access times are:"
+        print("The slowest access times are:")
         atimes = conn.zrevrange('slowest:AccessTime', 0, -1, withscores=True)
         pprint.pprint(atimes[:10])
         self.assertTrue(len(atimes) >= 10)
-        print
+        print()
 
         def cb():
             time.sleep(1 + random.random())
 
-        print "Let's use the callback version..."
-        for i in xrange(5):
+        print("Let's use the callback version...")
+        for i in range(5):
             request.path = 'cbreq-%s'%i
             process_view(conn, cb)
-        print "The slowest access times are:"
+        print("The slowest access times are:")
         atimes = conn.zrevrange('slowest:AccessTime', 0, -1, withscores=True)
         pprint.pprint(atimes[:10])
         self.assertTrue(len(atimes) >= 10)
@@ -641,51 +641,51 @@ class TestCh05(unittest.TestCase):
             open('GeoLiteCity-Blocks.csv', 'rb')
             open('GeoLiteCity-Location.csv', 'rb')
         except:
-            print "********"
-            print "You do not have the GeoLiteCity database available, aborting test"
-            print "Please have the following two files in the current path:"
-            print "GeoLiteCity-Blocks.csv"
-            print "GeoLiteCity-Location.csv"
-            print "********"
+            print("********")
+            print("You do not have the GeoLiteCity database available, aborting test")
+            print("Please have the following two files in the current path:")
+            print("GeoLiteCity-Blocks.csv")
+            print("GeoLiteCity-Location.csv")
+            print("********")
             return
 
-        print "Importing IP addresses to Redis... (this may take a while)"
+        print("Importing IP addresses to Redis... (this may take a while)")
         import_ips_to_redis(conn, 'GeoLiteCity-Blocks.csv')
         ranges = conn.zcard('ip2cityid:')
-        print "Loaded ranges into Redis:", ranges
+        print("Loaded ranges into Redis:", ranges)
         self.assertTrue(ranges > 1000)
-        print
+        print()
 
-        print "Importing Location lookups to Redis... (this may take a while)"
+        print("Importing Location lookups to Redis... (this may take a while)")
         import_cities_to_redis(conn, 'GeoLiteCity-Location.csv')
         cities = conn.hlen('cityid2city:')
-        print "Loaded city lookups into Redis:", cities
+        print("Loaded city lookups into Redis:", cities)
         self.assertTrue(cities > 1000)
-        print
+        print()
 
-        print "Let's lookup some locations!"
+        print("Let's lookup some locations!")
         rr = random.randrange
-        for i in xrange(5):
-            print find_city_by_ip(conn, '%s.%s.%s.%s'%(rr(1,255), rr(256), rr(256), rr(256)))
+        for i in range(5):
+            print(find_city_by_ip(conn, '%s.%s.%s.%s'%(rr(1,255), rr(256), rr(256), rr(256))))
 
     def test_is_under_maintenance(self):
-        print "Are we under maintenance (we shouldn't be)?", is_under_maintenance(self.conn)
+        print("Are we under maintenance (we shouldn't be)?", is_under_maintenance(self.conn))
         self.conn.set('is-under-maintenance', 'yes')
-        print "We cached this, so it should be the same:", is_under_maintenance(self.conn)
+        print("We cached this, so it should be the same:", is_under_maintenance(self.conn))
         time.sleep(1)
-        print "But after a sleep, it should change:", is_under_maintenance(self.conn)
-        print "Cleaning up..."
+        print("But after a sleep, it should change:", is_under_maintenance(self.conn))
+        print("Cleaning up...")
         self.conn.delete('is-under-maintenance')
         time.sleep(1)
-        print "Should be False again:", is_under_maintenance(self.conn)
+        print("Should be False again:", is_under_maintenance(self.conn))
 
     def test_config(self):
-        print "Let's set a config and then get a connection from that config..."
+        print("Let's set a config and then get a connection from that config...")
         set_config(self.conn, 'redis', 'test', {'db':15})
         @redis_connection('test')
         def test(conn2):
             return bool(conn2.info())
-        print "We can run commands from the configured connection:", test()
+        print("We can run commands from the configured connection:", test())
 
 if __name__ == '__main__':
     unittest.main()

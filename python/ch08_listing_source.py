@@ -1,17 +1,17 @@
 
-import BaseHTTPServer
+import http.server
 import cgi
 import functools
 import json
 import math
 import random
 import socket
-import SocketServer
+import socketserver
 import time
 import threading
 import unittest
 import uuid
-import urlparse
+import urllib.parse
 
 import redis
 
@@ -82,7 +82,7 @@ def redis_connection(component, wait=1):                        #A
                 config_connection, 'redis', component, wait)    #G
 
             config = {}
-            for k, v in _config.iteritems():                    #L
+            for k, v in _config.items():                    #L
                 config[k.encode('utf-8')] = v                   #L
 
             if config != old_config:                            #H
@@ -176,7 +176,7 @@ def get_status_messages(conn, uid, timeline='home:', page=1, count=30):#A
     for id in statuses:                                         #C
         pipeline.hgetall('status:%s'%id)                        #C
 
-    return filter(None, pipeline.execute())                     #D
+    return [_f for _f in pipeline.execute() if _f]                     #D
 # <end id="fetch-page"/>
 #A We will take an optional 'timeline' argument, as well as page size and status message counts
 #B Fetch the most recent status ids in the timeline
@@ -539,13 +539,13 @@ def clean_timelines(conn, uid, status_id, start=0, on_lists=False):
 
 # <start id="streaming-http-server"/>
 class StreamingAPIServer(               #A
-    SocketServer.ThreadingMixIn,        #B
-    BaseHTTPServer.HTTPServer):         #B
+    socketserver.ThreadingMixIn,        #B
+    http.server.HTTPServer):         #B
 
     daemon_threads = True               #C
 
 class StreamingAPIRequestHandler(               #D
-    BaseHTTPServer.BaseHTTPRequestHandler):     #E
+    http.server.BaseHTTPRequestHandler):     #E
 
     def do_GET(self):                                       #F
         parse_identifier(self)                              #G
@@ -582,7 +582,7 @@ def parse_identifier(handler):
     handler.query = {}              #A
     if '?' in handler.path:         #B
         handler.path, _, query = handler.path.partition('?')    #C
-        handler.query = urlparse.parse_qs(query)                #D
+        handler.query = urllib.parse.parse_qs(query)                #D
         identifier = handler.query.get('identifier') or [None]  #E
         handler.identifier = identifier[0]                      #F
 # <end id="get-identifier"/>
@@ -764,7 +764,7 @@ def create_filters(id, method, name, args):
 # <start id="sample-filter"/>
 def SampleFilter(id, args):                             #A
     percent = int(args.get('percent', ['10'])[0], 10)   #B
-    ids = range(100)                                    #C
+    ids = list(range(100))                                    #C
     shuffler = random.Random(id)                        #C
     shuffler.shuffle(ids)                               #C
     keep = set(ids[:max(percent, 1)])                   #D
@@ -826,15 +826,15 @@ def FollowFilter(names):
 # <start id="location-filter"/>
 def LocationFilter(list_of_boxes):
     boxes = []                                                  #A
-    for start in xrange(0, len(list_of_boxes)-3, 4):            #A
-        boxes.append(map(float, list_of_boxes[start:start+4]))  #A
+    for start in range(0, len(list_of_boxes)-3, 4):            #A
+        boxes.append(list(map(float, list_of_boxes[start:start+4])))  #A
 
     def check(self, status):
         location = status.get('location')           #B
         if not location:                            #C
             return False                            #C
 
-        lat, lon = map(float, location.split(','))  #D
+        lat, lon = list(map(float, location.split(',')))  #D
         for box in self.boxes:                      #E
             if (box[1] <= lat <= box[3] and         #F
                 box[0] <= lon <= box[2]):           #F
@@ -852,8 +852,8 @@ def LocationFilter(list_of_boxes):
 
 _filter_content = filter_content
 def filter_content(identifier, method, name, args, quit):
-    print "got:", identifier, method, name, args
-    for i in xrange(10):
+    print("got:", identifier, method, name, args)
+    for i in range(10):
         yield json.dumps({'id':i})
         if quit[0]:
             break
@@ -881,64 +881,64 @@ class TestCh08(unittest.TestCase):
         self.conn.flushdb()
 
     def test_create_user_and_status(self):
-        self.assertEquals(create_user(self.conn, 'TestUser', 'Test User'), 1)
-        self.assertEquals(create_user(self.conn, 'TestUser', 'Test User2'), None)
+        self.assertEqual(create_user(self.conn, 'TestUser', 'Test User'), 1)
+        self.assertEqual(create_user(self.conn, 'TestUser', 'Test User2'), None)
 
-        self.assertEquals(create_status(self.conn, 1, "This is a new status message"), 1)
-        self.assertEquals(self.conn.hget('user:1', 'posts'), '1')
+        self.assertEqual(create_status(self.conn, 1, "This is a new status message"), 1)
+        self.assertEqual(self.conn.hget('user:1', 'posts'), '1')
 
     def test_follow_unfollow_user(self):
-        self.assertEquals(create_user(self.conn, 'TestUser', 'Test User'), 1)
-        self.assertEquals(create_user(self.conn, 'TestUser2', 'Test User2'), 2)
+        self.assertEqual(create_user(self.conn, 'TestUser', 'Test User'), 1)
+        self.assertEqual(create_user(self.conn, 'TestUser2', 'Test User2'), 2)
         
         self.assertTrue(follow_user(self.conn, 1, 2))
-        self.assertEquals(self.conn.zcard('followers:2'), 1)
-        self.assertEquals(self.conn.zcard('followers:1'), 0)
-        self.assertEquals(self.conn.zcard('following:1'), 1)
-        self.assertEquals(self.conn.zcard('following:2'), 0)
-        self.assertEquals(self.conn.hget('user:1', 'following'), '1')
-        self.assertEquals(self.conn.hget('user:2', 'following'), '0')
-        self.assertEquals(self.conn.hget('user:1', 'followers'), '0')
-        self.assertEquals(self.conn.hget('user:2', 'followers'), '1')
+        self.assertEqual(self.conn.zcard('followers:2'), 1)
+        self.assertEqual(self.conn.zcard('followers:1'), 0)
+        self.assertEqual(self.conn.zcard('following:1'), 1)
+        self.assertEqual(self.conn.zcard('following:2'), 0)
+        self.assertEqual(self.conn.hget('user:1', 'following'), '1')
+        self.assertEqual(self.conn.hget('user:2', 'following'), '0')
+        self.assertEqual(self.conn.hget('user:1', 'followers'), '0')
+        self.assertEqual(self.conn.hget('user:2', 'followers'), '1')
 
-        self.assertEquals(unfollow_user(self.conn, 2, 1), None)
-        self.assertEquals(unfollow_user(self.conn, 1, 2), True)
-        self.assertEquals(self.conn.zcard('followers:2'), 0)
-        self.assertEquals(self.conn.zcard('followers:1'), 0)
-        self.assertEquals(self.conn.zcard('following:1'), 0)
-        self.assertEquals(self.conn.zcard('following:2'), 0)
-        self.assertEquals(self.conn.hget('user:1', 'following'), '0')
-        self.assertEquals(self.conn.hget('user:2', 'following'), '0')
-        self.assertEquals(self.conn.hget('user:1', 'followers'), '0')
-        self.assertEquals(self.conn.hget('user:2', 'followers'), '0')
+        self.assertEqual(unfollow_user(self.conn, 2, 1), None)
+        self.assertEqual(unfollow_user(self.conn, 1, 2), True)
+        self.assertEqual(self.conn.zcard('followers:2'), 0)
+        self.assertEqual(self.conn.zcard('followers:1'), 0)
+        self.assertEqual(self.conn.zcard('following:1'), 0)
+        self.assertEqual(self.conn.zcard('following:2'), 0)
+        self.assertEqual(self.conn.hget('user:1', 'following'), '0')
+        self.assertEqual(self.conn.hget('user:2', 'following'), '0')
+        self.assertEqual(self.conn.hget('user:1', 'followers'), '0')
+        self.assertEqual(self.conn.hget('user:2', 'followers'), '0')
         
     def test_syndicate_status(self):
-        self.assertEquals(create_user(self.conn, 'TestUser', 'Test User'), 1)
-        self.assertEquals(create_user(self.conn, 'TestUser2', 'Test User2'), 2)
+        self.assertEqual(create_user(self.conn, 'TestUser', 'Test User'), 1)
+        self.assertEqual(create_user(self.conn, 'TestUser2', 'Test User2'), 2)
         self.assertTrue(follow_user(self.conn, 1, 2))
-        self.assertEquals(self.conn.zcard('followers:2'), 1)
-        self.assertEquals(self.conn.hget('user:1', 'following'), '1')
-        self.assertEquals(post_status(self.conn, 2, 'this is some message content'), 1)
-        self.assertEquals(len(get_status_messages(self.conn, 1)), 1)
+        self.assertEqual(self.conn.zcard('followers:2'), 1)
+        self.assertEqual(self.conn.hget('user:1', 'following'), '1')
+        self.assertEqual(post_status(self.conn, 2, 'this is some message content'), 1)
+        self.assertEqual(len(get_status_messages(self.conn, 1)), 1)
 
-        for i in xrange(3, 11):
-            self.assertEquals(create_user(self.conn, 'TestUser%s'%i, 'Test User%s'%i), i)
+        for i in range(3, 11):
+            self.assertEqual(create_user(self.conn, 'TestUser%s'%i, 'Test User%s'%i), i)
             follow_user(self.conn, i, 2)
 
         global POSTS_PER_PASS
         POSTS_PER_PASS = 5
         
-        self.assertEquals(post_status(self.conn, 2, 'this is some other message content'), 2)
+        self.assertEqual(post_status(self.conn, 2, 'this is some other message content'), 2)
         time.sleep(.1)
-        self.assertEquals(len(get_status_messages(self.conn, 9)), 2)
+        self.assertEqual(len(get_status_messages(self.conn, 9)), 2)
 
         self.assertTrue(unfollow_user(self.conn, 1, 2))
-        self.assertEquals(len(get_status_messages(self.conn, 1)), 0)
+        self.assertEqual(len(get_status_messages(self.conn, 1)), 0)
 
     def test_refill_timeline(self):
-        self.assertEquals(create_user(self.conn, 'TestUser', 'Test User'), 1)
-        self.assertEquals(create_user(self.conn, 'TestUser2', 'Test User2'), 2)
-        self.assertEquals(create_user(self.conn, 'TestUser3', 'Test User3'), 3)
+        self.assertEqual(create_user(self.conn, 'TestUser', 'Test User'), 1)
+        self.assertEqual(create_user(self.conn, 'TestUser2', 'Test User2'), 2)
+        self.assertEqual(create_user(self.conn, 'TestUser3', 'Test User3'), 3)
         
         self.assertTrue(follow_user(self.conn, 1, 2))
         self.assertTrue(follow_user(self.conn, 1, 3))
@@ -946,26 +946,26 @@ class TestCh08(unittest.TestCase):
         global HOME_TIMELINE_SIZE
         HOME_TIMELINE_SIZE = 5
         
-        for i in xrange(10):
+        for i in range(10):
             self.assertTrue(post_status(self.conn, 2, 'message'))
             self.assertTrue(post_status(self.conn, 3, 'message'))
             time.sleep(.05)
 
-        self.assertEquals(len(get_status_messages(self.conn, 1)), 5)
+        self.assertEqual(len(get_status_messages(self.conn, 1)), 5)
         self.assertTrue(unfollow_user(self.conn, 1, 2))
         self.assertTrue(len(get_status_messages(self.conn, 1)) < 5)
 
         refill_timeline(self.conn, 'following:1', 'home:1')
         messages = get_status_messages(self.conn, 1)
-        self.assertEquals(len(messages), 5)
+        self.assertEqual(len(messages), 5)
         for msg in messages:
-            self.assertEquals(msg['uid'], '3')
+            self.assertEqual(msg['uid'], '3')
         
         delete_status(self.conn, '3', messages[-1]['id'])
-        self.assertEquals(len(get_status_messages(self.conn, 1)), 4)
-        self.assertEquals(self.conn.zcard('home:1'), 5)
+        self.assertEqual(len(get_status_messages(self.conn, 1)), 4)
+        self.assertEqual(self.conn.zcard('home:1'), 5)
         clean_timelines(self.conn, '3', messages[-1]['id'])
-        self.assertEquals(self.conn.zcard('home:1'), 4)
+        self.assertEqual(self.conn.zcard('home:1'), 4)
 
 if __name__ == '__main__':
     unittest.main()

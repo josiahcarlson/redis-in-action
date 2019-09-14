@@ -106,12 +106,12 @@ set-max-intset-entries 512      #A
 # <start id="rpoplpush-benchmark"/>
 def long_ziplist_performance(conn, key, length, passes, psize): #A
     conn.delete(key)                    #B
-    conn.rpush(key, *range(length))     #C
+    conn.rpush(key, *list(range(length)))     #C
     pipeline = conn.pipeline(False)     #D
 
     t = time.time()                     #E
-    for p in xrange(passes):            #F
-        for pi in xrange(psize):        #G
+    for p in range(passes):            #F
+        for pi in range(psize):        #G
             pipeline.rpoplpush(key, key)#H
         pipeline.execute()              #I
 
@@ -155,24 +155,24 @@ def long_ziplist_performance(conn, key, length, passes, psize): #A
 
 def long_ziplist_index(conn, key, length, passes, psize): #A
     conn.delete(key)                    #B
-    conn.rpush(key, *range(length))     #C
+    conn.rpush(key, *list(range(length)))     #C
     length >>= 1
     pipeline = conn.pipeline(False)     #D
     t = time.time()                     #E
-    for p in xrange(passes):            #F
-        for pi in xrange(psize):        #G
+    for p in range(passes):            #F
+        for pi in range(psize):        #G
             pipeline.lindex(key, length)#H
         pipeline.execute()              #I
     return (passes * psize) / (time.time() - t or .001) #J
 
 def long_intset_performance(conn, key, length, passes, psize): #A
     conn.delete(key)                    #B
-    conn.sadd(key, *range(1000000, 1000000+length))     #C
+    conn.sadd(key, *list(range(1000000, 1000000+length)))     #C
     cur = 1000000-1
     pipeline = conn.pipeline(False)     #D
     t = time.time()                     #E
-    for p in xrange(passes):            #F
-        for pi in xrange(psize):        #G
+    for p in range(passes):            #F
+        for pi in range(psize):        #G
             pipeline.spop(key)#H
             pipeline.sadd(key, cur)
             cur -= 1
@@ -182,7 +182,7 @@ def long_intset_performance(conn, key, length, passes, psize): #A
 
 # <start id="calculate-shard-key"/>
 def shard_key(base, key, total_elements, shard_size):   #A
-    if isinstance(key, (int, long)) or key.isdigit():   #B
+    if isinstance(key, int) or key.isdigit():   #B
         shard_id = int(str(key), 10) // shard_size      #C
     else:
         shards = 2 * total_elements // shard_size       #D
@@ -392,9 +392,9 @@ def aggregate_location(conn):
     max_id = int(conn.zscore('location:max', 'max'))            #B
     max_block = max_id // USERS_PER_SHARD                       #B
 
-    for shard_id in xrange(max_block + 1):                      #C
+    for shard_id in range(max_block + 1):                      #C
         for block in readblocks(conn, 'location:%s'%shard_id):  #D
-            for offset in xrange(0, len(block)-1, 2):           #E
+            for offset in range(0, len(block)-1, 2):           #E
                 code = block[offset:offset+2]
                 update_aggregates(countries, states, [code])    #F
 
@@ -478,44 +478,44 @@ class TestCh09(unittest.TestCase):
 
     def test_long_ziplist_performance(self):
         long_ziplist_performance(self.conn, 'test', 5, 10, 10)
-        self.assertEquals(self.conn.llen('test'), 5)
+        self.assertEqual(self.conn.llen('test'), 5)
 
     def test_shard_key(self):
         base = 'test'
-        self.assertEquals(shard_key(base, 1, 2, 2), 'test:0')
-        self.assertEquals(shard_key(base, '1', 2, 2), 'test:0')
-        self.assertEquals(shard_key(base, 125, 1000, 100), 'test:1')
-        self.assertEquals(shard_key(base, '125', 1000, 100), 'test:1')
+        self.assertEqual(shard_key(base, 1, 2, 2), 'test:0')
+        self.assertEqual(shard_key(base, '1', 2, 2), 'test:0')
+        self.assertEqual(shard_key(base, 125, 1000, 100), 'test:1')
+        self.assertEqual(shard_key(base, '125', 1000, 100), 'test:1')
 
-        for i in xrange(50):
+        for i in range(50):
             self.assertTrue(0 <= int(shard_key(base, 'hello:%s'%i, 1000, 100).partition(':')[-1]) < 20)
             self.assertTrue(0 <= int(shard_key(base, i, 1000, 100).partition(':')[-1]) < 10)
 
     def test_sharded_hash(self):
-        for i in xrange(50):
+        for i in range(50):
             shard_hset(self.conn, 'test', 'keyname:%s'%i, i, 1000, 100)
-            self.assertEquals(shard_hget(self.conn, 'test', 'keyname:%s'%i, 1000, 100), str(i))
+            self.assertEqual(shard_hget(self.conn, 'test', 'keyname:%s'%i, 1000, 100), str(i))
             shard_hset(self.conn, 'test2', i, i, 1000, 100)
-            self.assertEquals(shard_hget(self.conn, 'test2', i, 1000, 100), str(i))
+            self.assertEqual(shard_hget(self.conn, 'test2', i, 1000, 100), str(i))
 
     def test_sharded_sadd(self):
-        for i in xrange(50):
+        for i in range(50):
             shard_sadd(self.conn, 'testx', i, 50, 50)
-        self.assertEquals(self.conn.scard('testx:0') + self.conn.scard('testx:1'), 50)
+        self.assertEqual(self.conn.scard('testx:0') + self.conn.scard('testx:1'), 50)
 
     def test_unique_visitors(self):
         global DAILY_EXPECTED
         DAILY_EXPECTED = 10000
         
-        for i in xrange(179):
+        for i in range(179):
             count_visit(self.conn, str(uuid.uuid4()))
-        self.assertEquals(self.conn.get('unique:%s'%(date.today().isoformat())), '179')
+        self.assertEqual(self.conn.get('unique:%s'%(date.today().isoformat())), '179')
 
         self.conn.flushdb()
         self.conn.set('unique:%s'%((date.today() - timedelta(days=1)).isoformat()), 1000)
-        for i in xrange(183):
+        for i in range(183):
             count_visit(self.conn, str(uuid.uuid4()))
-        self.assertEquals(self.conn.get('unique:%s'%(date.today().isoformat())), '183')
+        self.assertEqual(self.conn.get('unique:%s'%(date.today().isoformat())), '183')
 
     def test_user_location(self):
         i = 0
@@ -529,18 +529,18 @@ class TestCh09(unittest.TestCase):
                 i += 1
         
         _countries, _states = aggregate_location(self.conn)
-        countries, states = aggregate_location_list(self.conn, range(i+1))
+        countries, states = aggregate_location_list(self.conn, list(range(i+1)))
         
-        self.assertEquals(_countries, countries)
-        self.assertEquals(_states, states)
+        self.assertEqual(_countries, countries)
+        self.assertEqual(_states, states)
 
         for c in countries:
             if c in STATES:
-                self.assertEquals(len(STATES[c]), countries[c])
+                self.assertEqual(len(STATES[c]), countries[c])
                 for s in STATES[c]:
-                    self.assertEquals(states[c][s], 1)
+                    self.assertEqual(states[c][s], 1)
             else:
-                self.assertEquals(countries[c], 1)
+                self.assertEqual(countries[c], 1)
 
 if __name__ == '__main__':
     unittest.main()

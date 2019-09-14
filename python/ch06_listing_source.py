@@ -529,12 +529,12 @@ def fetch_pending_messages(conn, recipient):
     for chat_id, seen_id in seen:                               #B
         pipeline.zrangebyscore(                                 #B
             'msgs:' + chat_id, seen_id+1, 'inf')                #B
-    chat_info = zip(seen, pipeline.execute())                   #C
+    chat_info = list(zip(seen, pipeline.execute()))                   #C
 
     for i, ((chat_id, seen_id), messages) in enumerate(chat_info):
         if not messages:
             continue
-        messages[:] = map(json.loads, messages)
+        messages[:] = list(map(json.loads, messages))
         seen_id = messages[-1]['id']                            #D
         conn.zadd('chat:' + chat_id, recipient, seen_id)        #D
 
@@ -608,7 +608,7 @@ def daily_country_aggregate(conn, line):
         aggregates[day][country] += 1                   #D
         return
 
-    for day, aggregate in aggregates.items():           #E
+    for day, aggregate in list(aggregates.items()):           #E
         conn.zadd('daily:country:' + day, **aggregate)  #E
         del aggregates[day]                             #E
 # <end id="_1314_15044_3669"/>
@@ -624,7 +624,7 @@ def copy_logs_to_redis(conn, path, channel, count=10,
                        limit=2**30, quit_when_done=True):
     bytes_in_redis = 0
     waiting = deque()
-    create_chat(conn, 'source', map(str, range(count)), '', channel) #I
+    create_chat(conn, 'source', list(map(str, list(range(count)))), '', channel) #I
     count = str(count)
     for logfile in sorted(os.listdir(path)):               #A
         full_path = os.path.join(path, logfile)
@@ -807,40 +807,40 @@ class TestCh06(unittest.TestCase):
     def tearDown(self):
         self.conn.flushdb()
         del self.conn
-        print
-        print
+        print()
+        print()
 
     def test_add_update_contact(self):
         import pprint
         conn = self.conn
         conn.delete('recent:user')
 
-        print "Let's add a few contacts..."
-        for i in xrange(10):
+        print("Let's add a few contacts...")
+        for i in range(10):
             add_update_contact(conn, 'user', 'contact-%i-%i'%(i//3, i))
-        print "Current recently contacted contacts"
+        print("Current recently contacted contacts")
         contacts = conn.lrange('recent:user', 0, -1)
         pprint.pprint(contacts)
         self.assertTrue(len(contacts) >= 10)
-        print
+        print()
 
-        print "Let's pull one of the older ones up to the front"
+        print("Let's pull one of the older ones up to the front")
         add_update_contact(conn, 'user', 'contact-1-4')
         contacts = conn.lrange('recent:user', 0, 2)
-        print "New top-3 contacts:"
+        print("New top-3 contacts:")
         pprint.pprint(contacts)
-        self.assertEquals(contacts[0], 'contact-1-4')
-        print
+        self.assertEqual(contacts[0], 'contact-1-4')
+        print()
 
-        print "Let's remove a contact..."
-        print remove_contact(conn, 'user', 'contact-2-6')
+        print("Let's remove a contact...")
+        print(remove_contact(conn, 'user', 'contact-2-6'))
         contacts = conn.lrange('recent:user', 0, -1)
-        print "New contacts:"
+        print("New contacts:")
         pprint.pprint(contacts)
         self.assertTrue(len(contacts) >= 9)
-        print
+        print()
 
-        print "And let's finally autocomplete on "
+        print("And let's finally autocomplete on ")
         all = conn.lrange('recent:user', 0, -1)
         contacts = fetch_autocomplete_list(conn, 'user', 'c')
         self.assertTrue(all == contacts)
@@ -848,119 +848,119 @@ class TestCh06(unittest.TestCase):
         contacts = fetch_autocomplete_list(conn, 'user', 'contact-2-')
         equiv.sort()
         contacts.sort()
-        self.assertEquals(equiv, contacts)
+        self.assertEqual(equiv, contacts)
         conn.delete('recent:user')
 
     def test_address_book_autocomplete(self):
         self.conn.delete('members:test')
-        print "the start/end range of 'abc' is:", find_prefix_range('abc')
-        print
+        print("the start/end range of 'abc' is:", find_prefix_range('abc'))
+        print()
 
-        print "Let's add a few people to the guild"
+        print("Let's add a few people to the guild")
         for name in ['jeff', 'jenny', 'jack', 'jennifer']:
             join_guild(self.conn, 'test', name)
-        print
-        print "now let's try to find users with names starting with 'je':"
+        print()
+        print("now let's try to find users with names starting with 'je':")
         r = autocomplete_on_prefix(self.conn, 'test', 'je')
-        print r
+        print(r)
         self.assertTrue(len(r) == 3)
-        print "jeff just left to join a different guild..."
+        print("jeff just left to join a different guild...")
         leave_guild(self.conn, 'test', 'jeff')
         r = autocomplete_on_prefix(self.conn, 'test', 'je')
-        print r
+        print(r)
         self.assertTrue(len(r) == 2)
         self.conn.delete('members:test')
 
     def test_distributed_locking(self):
         self.conn.delete('lock:testlock')
-        print "Getting an initial lock..."
+        print("Getting an initial lock...")
         self.assertTrue(acquire_lock_with_timeout(self.conn, 'testlock', 1, 1))
-        print "Got it!"
-        print "Trying to get it again without releasing the first one..."
+        print("Got it!")
+        print("Trying to get it again without releasing the first one...")
         self.assertFalse(acquire_lock_with_timeout(self.conn, 'testlock', .01, 1))
-        print "Failed to get it!"
-        print
-        print "Waiting for the lock to timeout..."
+        print("Failed to get it!")
+        print()
+        print("Waiting for the lock to timeout...")
         time.sleep(2)
-        print "Getting the lock again..."
+        print("Getting the lock again...")
         r = acquire_lock_with_timeout(self.conn, 'testlock', 1, 1)
         self.assertTrue(r)
-        print "Got it!"
-        print "Releasing the lock..."
+        print("Got it!")
+        print("Releasing the lock...")
         self.assertTrue(release_lock(self.conn, 'testlock', r))
-        print "Released it..."
-        print
-        print "Acquiring it again..."
+        print("Released it...")
+        print()
+        print("Acquiring it again...")
         self.assertTrue(acquire_lock_with_timeout(self.conn, 'testlock', 1, 1))
-        print "Got it!"
+        print("Got it!")
         self.conn.delete('lock:testlock')
 
     def test_counting_semaphore(self):
         self.conn.delete('testsem', 'testsem:owner', 'testsem:counter')
-        print "Getting 3 initial semaphores with a limit of 3..."
-        for i in xrange(3):
+        print("Getting 3 initial semaphores with a limit of 3...")
+        for i in range(3):
             self.assertTrue(acquire_fair_semaphore(self.conn, 'testsem', 3, 1))
-        print "Done!"
-        print "Getting one more that should fail..."
+        print("Done!")
+        print("Getting one more that should fail...")
         self.assertFalse(acquire_fair_semaphore(self.conn, 'testsem', 3, 1))
-        print "Couldn't get it!"
-        print
-        print "Lets's wait for some of them to time out"
+        print("Couldn't get it!")
+        print()
+        print("Lets's wait for some of them to time out")
         time.sleep(2)
-        print "Can we get one?"
+        print("Can we get one?")
         r = acquire_fair_semaphore(self.conn, 'testsem', 3, 1)
         self.assertTrue(r)
-        print "Got one!"
-        print "Let's release it..."
+        print("Got one!")
+        print("Let's release it...")
         self.assertTrue(release_fair_semaphore(self.conn, 'testsem', r))
-        print "Released!"
-        print
-        print "And let's make sure we can get 3 more!"
-        for i in xrange(3):
+        print("Released!")
+        print()
+        print("And let's make sure we can get 3 more!")
+        for i in range(3):
             self.assertTrue(acquire_fair_semaphore(self.conn, 'testsem', 3, 1))
-        print "We got them!"
+        print("We got them!")
         self.conn.delete('testsem', 'testsem:owner', 'testsem:counter')
 
     def test_delayed_tasks(self):
         import threading
         self.conn.delete('queue:tqueue', 'delayed:')
-        print "Let's start some regular and delayed tasks..."
+        print("Let's start some regular and delayed tasks...")
         for delay in [0, .5, 0, 1.5]:
             self.assertTrue(execute_later(self.conn, 'tqueue', 'testfn', [], delay))
         r = self.conn.llen('queue:tqueue')
-        print "How many non-delayed tasks are there (should be 2)?", r
-        self.assertEquals(r, 2)
-        print
-        print "Let's start up a thread to bring those delayed tasks back..."
+        print("How many non-delayed tasks are there (should be 2)?", r)
+        self.assertEqual(r, 2)
+        print()
+        print("Let's start up a thread to bring those delayed tasks back...")
         t = threading.Thread(target=poll_queue, args=(self.conn,))
         t.setDaemon(1)
         t.start()
-        print "Started."
-        print "Let's wait for those tasks to be prepared..."
+        print("Started.")
+        print("Let's wait for those tasks to be prepared...")
         time.sleep(2)
         global QUIT
         QUIT = True
         t.join()
         r = self.conn.llen('queue:tqueue')
-        print "Waiting is over, how many tasks do we have (should be 4)?", r
-        self.assertEquals(r, 4)
+        print("Waiting is over, how many tasks do we have (should be 4)?", r)
+        self.assertEqual(r, 4)
         self.conn.delete('queue:tqueue', 'delayed:')
 
     def test_multi_recipient_messaging(self):
         self.conn.delete('ids:chat:', 'msgs:1', 'ids:1', 'seen:joe', 'seen:jeff', 'seen:jenny')
 
-        print "Let's create a new chat session with some recipients..."
+        print("Let's create a new chat session with some recipients...")
         chat_id = create_chat(self.conn, 'joe', ['jeff', 'jenny'], 'message 1')
-        print "Now let's send a few messages..."
-        for i in xrange(2, 5):
+        print("Now let's send a few messages...")
+        for i in range(2, 5):
             send_message(self.conn, chat_id, 'joe', 'message %s'%i)
-        print
-        print "And let's get the messages that are waiting for jeff and jenny..."
+        print()
+        print("And let's get the messages that are waiting for jeff and jenny...")
         r1 = fetch_pending_messages(self.conn, 'jeff')
         r2 = fetch_pending_messages(self.conn, 'jenny')
-        print "They are the same?", r1==r2
-        self.assertEquals(r1, r2)
-        print "Those messages are:"
+        print("They are the same?", r1==r2)
+        self.assertEqual(r1, r2)
+        print("Those messages are:")
         import pprint
         pprint.pprint(r1)
         self.conn.delete('ids:chat:', 'msgs:1', 'ids:1', 'seen:joe', 'seen:jeff', 'seen:jenny')
@@ -971,50 +971,50 @@ class TestCh06(unittest.TestCase):
 
         dire = tempfile.mkdtemp()
         try:
-            print "Creating some temporary 'log' files..."
+            print("Creating some temporary 'log' files...")
             with open(dire + '/temp-1.txt', 'wb') as f:
                 f.write('one line\n')
             with open(dire + '/temp-2.txt', 'wb') as f:
                 f.write(10000 * 'many lines\n')
             out = gzip.GzipFile(dire + '/temp-3.txt.gz', mode='wb')
-            for i in xrange(100000):
+            for i in range(100000):
                 out.write('random line %s\n'%(os.urandom(16).encode('hex'),))
             out.close()
             size = os.stat(dire + '/temp-3.txt.gz').st_size
-            print "Done."
-            print
-            print "Starting up a thread to copy logs to redis..."
+            print("Done.")
+            print()
+            print("Starting up a thread to copy logs to redis...")
             t = threading.Thread(target=copy_logs_to_redis, args=(self.conn, dire, 'test:', 1, size))
             t.setDaemon(1)
             t.start()
 
-            print "Let's pause to let some logs get copied to Redis..."
+            print("Let's pause to let some logs get copied to Redis...")
             time.sleep(.25)
-            print
-            print "Okay, the logs should be ready. Let's process them!"
+            print()
+            print("Okay, the logs should be ready. Let's process them!")
 
             index = [0]
             counts = [0, 0, 0]
             def callback(conn, line):
                 if line is None:
-                    print "Finished with a file %s, linecount: %s"%(index[0], counts[index[0]])
+                    print("Finished with a file %s, linecount: %s"%(index[0], counts[index[0]]))
                     index[0] += 1
                 elif line or line.endswith('\n'):
                     counts[index[0]] += 1
 
-            print "Files should have 1, 10000, and 100000 lines"
+            print("Files should have 1, 10000, and 100000 lines")
             process_logs_from_redis(self.conn, '0', callback)
-            self.assertEquals(counts, [1, 10000, 100000])
+            self.assertEqual(counts, [1, 10000, 100000])
 
-            print
-            print "Let's wait for the copy thread to finish cleaning up..."
+            print()
+            print("Let's wait for the copy thread to finish cleaning up...")
             t.join()
-            print "Done cleaning out Redis!"
+            print("Done cleaning out Redis!")
 
         finally:
-            print "Time to clean up files..."
+            print("Time to clean up files...")
             shutil.rmtree(dire)
-            print "Cleaned out files!"
+            print("Cleaned out files!")
         self.conn.delete('test:temp-1.txt', 'test:temp-2.txt', 'test:temp-3.txt', 'msgs:test:', 'seen:0', 'seen:source', 'ids:test:', 'chat:test:')
 
 if __name__ == '__main__':

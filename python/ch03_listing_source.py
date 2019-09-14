@@ -307,7 +307,7 @@ True                                                #G
 
 def publisher(n):
     time.sleep(1)
-    for i in xrange(n):
+    for i in range(n):
         conn.publish('channel', i)
         time.sleep(1)
 
@@ -317,7 +317,7 @@ def run_pubsub():
     pubsub.subscribe(['channel'])
     count = 0
     for item in pubsub.listen():
-        print item
+        print(item)
         count += 1
         if count == 4:
             pubsub.unsubscribe()
@@ -523,7 +523,7 @@ def get_articles(conn, page, order='score:'):
     ids = conn.zrevrangebyscore(order, start, end)
 
     pipeline = conn.pipeline()
-    map(pipeline.hgetall, ids)                              #A
+    list(map(pipeline.hgetall, ids))                              #A
 
     articles = []
     for id, article_data in zip(ids, pipeline.execute()):   #B

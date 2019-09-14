@@ -91,7 +91,7 @@ def create_status(conn, uid, message, **data):          #H
         'posted', time.time(),                          #I
         'uid', uid,                                     #I
     ]
-    for key, value in data.iteritems():                 #I
+    for key, value in data.items():                 #I
         args.append(key)                                #I
         args.append(value)                              #I
 
@@ -610,19 +610,19 @@ class TestCh11(unittest.TestCase):
         self.conn.flushdb()
 
     def test_load_script(self):
-        self.assertEquals(script_load("return 1")(self.conn), 1)
+        self.assertEqual(script_load("return 1")(self.conn), 1)
 
     def test_create_status(self):
         self.conn.hset('user:1', 'login', 'test')
         sid = _create_status(self.conn, 1, 'hello')
         sid2 = create_status(self.conn, 1, 'hello')
         
-        self.assertEquals(self.conn.hget('user:1', 'posts'), '2')
+        self.assertEqual(self.conn.hget('user:1', 'posts'), '2')
         data = self.conn.hgetall('status:%s'%sid)
         data2 = self.conn.hgetall('status:%s'%sid2)
         data.pop('posted'); data.pop('id')
         data2.pop('posted'); data2.pop('id')
-        self.assertEquals(data, data2)
+        self.assertEqual(data, data2)
 
     def test_locking(self):
         identifier = acquire_lock_with_timeout(self.conn, 'test', 1, 5)
@@ -633,7 +633,7 @@ class TestCh11(unittest.TestCase):
     
     def test_semaphore(self):
         ids = []
-        for i in xrange(5):
+        for i in range(5):
             ids.append(acquire_semaphore(self.conn, 'test', 5, timeout=1))
         self.assertTrue(None not in ids)
         self.assertFalse(acquire_semaphore(self.conn, 'test', 5, timeout=1))
@@ -651,9 +651,9 @@ class TestCh11(unittest.TestCase):
         for word in 'these are some words that we will be autocompleting on'.split():
             self.conn.zadd('members:test', word, 0)
         
-        self.assertEquals(autocomplete_on_prefix(self.conn, 'test', 'th'), ['that', 'these'])
-        self.assertEquals(autocomplete_on_prefix(self.conn, 'test', 'w'), ['we', 'will', 'words'])
-        self.assertEquals(autocomplete_on_prefix(self.conn, 'test', 'autocompleting'), ['autocompleting'])
+        self.assertEqual(autocomplete_on_prefix(self.conn, 'test', 'th'), ['that', 'these'])
+        self.assertEqual(autocomplete_on_prefix(self.conn, 'test', 'w'), ['we', 'will', 'words'])
+        self.assertEqual(autocomplete_on_prefix(self.conn, 'test', 'autocompleting'), ['autocompleting'])
 
     def test_marketplace(self):
         self.conn.sadd('inventory:1', '1')
@@ -665,35 +665,35 @@ class TestCh11(unittest.TestCase):
         self.assertTrue(purchase_item(self.conn, 2, '1', 1))
 
     def test_sharded_list(self):
-        self.assertEquals(sharded_lpush(self.conn, 'lst', *range(100)), 100)
-        self.assertEquals(sharded_llen(self.conn, 'lst'), 100)
+        self.assertEqual(sharded_lpush(self.conn, 'lst', *list(range(100))), 100)
+        self.assertEqual(sharded_llen(self.conn, 'lst'), 100)
 
-        self.assertEquals(sharded_lpush(self.conn, 'lst2', *range(1000)), 1000)
-        self.assertEquals(sharded_llen(self.conn, 'lst2'), 1000)
-        self.assertEquals(sharded_rpush(self.conn, 'lst2', *range(-1, -1001, -1)), 1000)
-        self.assertEquals(sharded_llen(self.conn, 'lst2'), 2000)
+        self.assertEqual(sharded_lpush(self.conn, 'lst2', *list(range(1000))), 1000)
+        self.assertEqual(sharded_llen(self.conn, 'lst2'), 1000)
+        self.assertEqual(sharded_rpush(self.conn, 'lst2', *list(range(-1, -1001, -1))), 1000)
+        self.assertEqual(sharded_llen(self.conn, 'lst2'), 2000)
 
-        self.assertEquals(sharded_lpop(self.conn, 'lst2'), '999')
-        self.assertEquals(sharded_rpop(self.conn, 'lst2'), '-1000')
+        self.assertEqual(sharded_lpop(self.conn, 'lst2'), '999')
+        self.assertEqual(sharded_rpop(self.conn, 'lst2'), '-1000')
         
-        for i in xrange(999):
+        for i in range(999):
             r = sharded_lpop(self.conn, 'lst2')
-        self.assertEquals(r, '0')
+        self.assertEqual(r, '0')
 
         results = []
         def pop_some(conn, fcn, lst, count, timeout):
-            for i in xrange(count):
+            for i in range(count):
                 results.append(sharded_blpop(conn, lst, timeout))
         
         t = threading.Thread(target=pop_some, args=(self.conn, sharded_blpop, 'lst3', 10, 1))
         t.setDaemon(1)
         t.start()
         
-        self.assertEquals(sharded_rpush(self.conn, 'lst3', *range(4)), 4)
+        self.assertEqual(sharded_rpush(self.conn, 'lst3', *list(range(4))), 4)
         time.sleep(2)
-        self.assertEquals(sharded_rpush(self.conn, 'lst3', *range(4, 8)), 4)
+        self.assertEqual(sharded_rpush(self.conn, 'lst3', *list(range(4, 8))), 4)
         time.sleep(2)
-        self.assertEquals(results, ['0', '1', '2', '3', None, '4', '5', '6', '7', None])
+        self.assertEqual(results, ['0', '1', '2', '3', None, '4', '5', '6', '7', None])
 
 if __name__ == '__main__':
     unittest.main()

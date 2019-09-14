@@ -239,7 +239,7 @@ def _zset_common(conn, method, scores, ttl=30, **kw):
     id = str(uuid.uuid4())                                  #A
     execute = kw.pop('_execute', True)                      #J
     pipeline = conn.pipeline(True) if execute else conn     #B
-    for key in scores.keys():                               #C
+    for key in list(scores.keys()):                               #C
         scores['idx:' + key] = scores.pop(key)              #C
     getattr(pipeline, method)('idx:' + id, scores, **kw)    #D
     pipeline.expire('idx:' + id, ttl)                       #E
@@ -271,7 +271,7 @@ def string_to_score(string, ignore_case=False):
     if ignore_case:                         #A
         string = string.lower()             #A
 
-    pieces = map(ord, string[:6])           #B
+    pieces = list(map(ord, string[:6]))           #B
     while len(pieces) < 6:                  #C
         pieces.append(-1)                   #C
 
@@ -294,15 +294,15 @@ def to_char_map(set):
         out[val] = pos-1
     return out
 
-LOWER = to_char_map(set([-1]) | set(xrange(ord('a'), ord('z')+1)))
-ALPHA = to_char_map(set(LOWER) | set(xrange(ord('A'), ord('Z')+1)))
-LOWER_NUMERIC = to_char_map(set(LOWER) | set(xrange(ord('0'), ord('9')+1)))
+LOWER = to_char_map(set([-1]) | set(range(ord('a'), ord('z')+1)))
+ALPHA = to_char_map(set(LOWER) | set(range(ord('A'), ord('Z')+1)))
+LOWER_NUMERIC = to_char_map(set(LOWER) | set(range(ord('0'), ord('9')+1)))
 ALPHA_NUMERIC = to_char_map(set(LOWER_NUMERIC) | set(ALPHA))
 
 def string_to_score_generic(string, mapping):
     length = int(52 / math.log(len(mapping), 2))    #A
 
-    pieces = map(ord, string[:length])              #B
+    pieces = list(map(ord, string[:length]))              #B
     while len(pieces) < length:                     #C
         pieces.append(-1)                           #C
 
@@ -318,7 +318,7 @@ def string_to_score_generic(string, mapping):
 # <start id="zadd-string"/>
 def zadd_string(conn, name, *args, **kwargs):
     pieces = list(args)                         #A
-    for piece in kwargs.iteritems():            #A
+    for piece in kwargs.items():            #A
         pieces.extend(piece)                    #A
 
     for i, v in enumerate(pieces):
@@ -624,7 +624,7 @@ def index_job_levels(conn, job_id, skill_levels):
     pipeline = conn.pipeline(True)
     for skill, level in skill_levels:
         level = min(level, SKILL_LEVEL_LIMIT)
-        for wlevel in xrange(level, SKILL_LEVEL_LIMIT+1):
+        for wlevel in range(level, SKILL_LEVEL_LIMIT+1):
             pipeline.sadd('idx:skill:%s:%s'%(skill,wlevel), job_id)
     pipeline.zadd('idx:jobs:req', job_id, total_skills)
     pipeline.execute()
@@ -656,7 +656,7 @@ def search_job_years(conn, skill_years):
     pipeline = conn.pipeline(True)
 
     union = []
-    for skill, years in skill_years.iteritems():
+    for skill, years in skill_years.items():
         sub_result = zintersect(pipeline,
             {'jobs:all':-years, 'skill:%s:years'%skill:1}, _execute=False)
         pipeline.zremrangebyscore('idx:' + sub_result, '(0', 'inf')
@@ -679,65 +679,65 @@ class TestCh07(unittest.TestCase):
         self.conn.flushdb()
 
     def test_index_document(self):
-        print "We're tokenizing some content..."
+        print("We're tokenizing some content...")
         tokens = tokenize(self.content)
-        print "Those tokens are:", tokens
+        print("Those tokens are:", tokens)
         self.assertTrue(tokens)
 
-        print "And now we are indexing that content..."
+        print("And now we are indexing that content...")
         r = index_document(self.conn, 'test', self.content)
-        self.assertEquals(r, len(tokens))
+        self.assertEqual(r, len(tokens))
         for t in tokens:
-            self.assertEquals(self.conn.smembers('idx:' + t), set(['test']))
+            self.assertEqual(self.conn.smembers('idx:' + t), set(['test']))
 
     def test_set_operations(self):
         index_document(self.conn, 'test', self.content)
 
         r = intersect(self.conn, ['content', 'indexed'])
-        self.assertEquals(self.conn.smembers('idx:' + r), set(['test']))
+        self.assertEqual(self.conn.smembers('idx:' + r), set(['test']))
 
         r = intersect(self.conn, ['content', 'ignored'])
-        self.assertEquals(self.conn.smembers('idx:' + r), set())
+        self.assertEqual(self.conn.smembers('idx:' + r), set())
 
         r = union(self.conn, ['content', 'ignored'])
-        self.assertEquals(self.conn.smembers('idx:' + r), set(['test']))
+        self.assertEqual(self.conn.smembers('idx:' + r), set(['test']))
 
         r = difference(self.conn, ['content', 'ignored'])
-        self.assertEquals(self.conn.smembers('idx:' + r), set(['test']))
+        self.assertEqual(self.conn.smembers('idx:' + r), set(['test']))
 
         r = difference(self.conn, ['content', 'indexed'])
-        self.assertEquals(self.conn.smembers('idx:' + r), set())
+        self.assertEqual(self.conn.smembers('idx:' + r), set())
 
     def test_parse_query(self):
         query = 'test query without stopwords'
-        self.assertEquals(parse(query), ([[x] for x in query.split()], []))
+        self.assertEqual(parse(query), ([[x] for x in query.split()], []))
 
         query = 'test +query without -stopwords'
-        self.assertEquals(parse(query), ([['test', 'query'], ['without']], ['stopwords']))
+        self.assertEqual(parse(query), ([['test', 'query'], ['without']], ['stopwords']))
 
     def test_parse_and_search(self):
-        print "And now we are testing search..."
+        print("And now we are testing search...")
         index_document(self.conn, 'test', self.content)
 
         r = parse_and_search(self.conn, 'content')
-        self.assertEquals(self.conn.smembers('idx:' + r), set(['test']))
+        self.assertEqual(self.conn.smembers('idx:' + r), set(['test']))
 
         r = parse_and_search(self.conn, 'content indexed random')
-        self.assertEquals(self.conn.smembers('idx:' + r), set(['test']))
+        self.assertEqual(self.conn.smembers('idx:' + r), set(['test']))
 
         r = parse_and_search(self.conn, 'content +indexed random')
-        self.assertEquals(self.conn.smembers('idx:' + r), set(['test']))
+        self.assertEqual(self.conn.smembers('idx:' + r), set(['test']))
 
         r = parse_and_search(self.conn, 'content indexed +random')
-        self.assertEquals(self.conn.smembers('idx:' + r), set(['test']))
+        self.assertEqual(self.conn.smembers('idx:' + r), set(['test']))
 
         r = parse_and_search(self.conn, 'content indexed -random')
-        self.assertEquals(self.conn.smembers('idx:' + r), set())
+        self.assertEqual(self.conn.smembers('idx:' + r), set())
 
-        print "Which passed!"
+        print("Which passed!")
 
     def test_search_with_sort(self):
-        print "And now let's test searching with sorting..."
+        print("And now let's test searching with sorting...")
 
         index_document(self.conn, 'test', self.content)
         index_document(self.conn, 'test2', self.content)
@@ -745,14 +745,14 @@ class TestCh07(unittest.TestCase):
         self.conn.hmset('kb:doc:test2', {'updated': 54321, 'id': 1})
 
         r = search_and_sort(self.conn, "content")
-        self.assertEquals(r[1], ['test2', 'test'])
+        self.assertEqual(r[1], ['test2', 'test'])
 
         r = search_and_sort(self.conn, "content", sort='-id')
-        self.assertEquals(r[1], ['test', 'test2'])
-        print "Which passed!"
+        self.assertEqual(r[1], ['test', 'test2'])
+        print("Which passed!")
 
     def test_search_with_zsort(self):
-        print "And now let's test searching with sorting via zset..."
+        print("And now let's test searching with sorting via zset...")
 
         index_document(self.conn, 'test', self.content)
         index_document(self.conn, 'test2', self.content)
@@ -760,11 +760,11 @@ class TestCh07(unittest.TestCase):
         self.conn.zadd('idx:sort:votes', 'test', 10, 'test2', 1)
 
         r = search_and_zsort(self.conn, "content", desc=False)
-        self.assertEquals(r[1], ['test', 'test2'])
+        self.assertEqual(r[1], ['test', 'test2'])
 
         r = search_and_zsort(self.conn, "content", update=0, vote=1, desc=False)
-        self.assertEquals(r[1], ['test2', 'test'])
-        print "Which passed!"
+        self.assertEqual(r[1], ['test2', 'test'])
+        print("Which passed!")
 
     def test_string_to_score(self):
         words = 'these are some words that will be sorted'.split()
@@ -772,37 +772,37 @@ class TestCh07(unittest.TestCase):
         pairs2 = list(pairs)
         pairs.sort()
         pairs2.sort(key=lambda x:x[1])
-        self.assertEquals(pairs, pairs2)
+        self.assertEqual(pairs, pairs2)
 
         words = 'these are some words that will be sorted'.split()
         pairs = [(word, string_to_score_generic(word, LOWER)) for word in words]
         pairs2 = list(pairs)
         pairs.sort()
         pairs2.sort(key=lambda x:x[1])
-        self.assertEquals(pairs, pairs2)
+        self.assertEqual(pairs, pairs2)
 
         zadd_string(self.conn, 'key', 'test', 'value', test2='other')
-        self.assertEquals(self.conn.zscore('key', 'test'), string_to_score('value'))
-        self.assertEquals(self.conn.zscore('key', 'test2'), string_to_score('other'))
+        self.assertEqual(self.conn.zscore('key', 'test'), string_to_score('value'))
+        self.assertEqual(self.conn.zscore('key', 'test2'), string_to_score('other'))
 
     def test_index_and_target_ads(self):
         index_ad(self.conn, '1', ['USA', 'CA'], self.content, 'cpc', .25)
         index_ad(self.conn, '2', ['USA', 'VA'], self.content + ' wooooo', 'cpc', .125)
 
-        for i in xrange(100):
+        for i in range(100):
             ro = target_ads(self.conn, ['USA'], self.content)
-        self.assertEquals(ro[1], '1')
+        self.assertEqual(ro[1], '1')
 
         r = target_ads(self.conn, ['VA'], 'wooooo')
-        self.assertEquals(r[1], '2')
+        self.assertEqual(r[1], '2')
 
-        self.assertEquals(self.conn.zrange('idx:ad:value:', 0, -1, withscores=True), [('2', 0.125), ('1', 0.25)])
-        self.assertEquals(self.conn.zrange('ad:base_value:', 0, -1, withscores=True), [('2', 0.125), ('1', 0.25)])
+        self.assertEqual(self.conn.zrange('idx:ad:value:', 0, -1, withscores=True), [('2', 0.125), ('1', 0.25)])
+        self.assertEqual(self.conn.zrange('ad:base_value:', 0, -1, withscores=True), [('2', 0.125), ('1', 0.25)])
 
         record_click(self.conn, ro[0], ro[1])
 
-        self.assertEquals(self.conn.zrange('idx:ad:value:', 0, -1, withscores=True), [('2', 0.125), ('1', 2.5)])
-        self.assertEquals(self.conn.zrange('ad:base_value:', 0, -1, withscores=True), [('2', 0.125), ('1', 0.25)])
+        self.assertEqual(self.conn.zrange('idx:ad:value:', 0, -1, withscores=True), [('2', 0.125), ('1', 2.5)])
+        self.assertEqual(self.conn.zrange('ad:base_value:', 0, -1, withscores=True), [('2', 0.125), ('1', 0.25)])
 
     def test_is_qualified_for_job(self):
         add_job(self.conn, 'test', ['q1', 'q2', 'q3'])
@@ -814,42 +814,42 @@ class TestCh07(unittest.TestCase):
         index_job(self.conn, 'test2', ['q1', 'q3', 'q4'])
         index_job(self.conn, 'test3', ['q1', 'q3', 'q5'])
 
-        self.assertEquals(find_jobs(self.conn, ['q1']), [])
-        self.assertEquals(find_jobs(self.conn, ['q1', 'q3', 'q4']), ['test2'])
-        self.assertEquals(find_jobs(self.conn, ['q1', 'q3', 'q5']), ['test3'])
-        self.assertEquals(find_jobs(self.conn, ['q1', 'q2', 'q3', 'q4', 'q5']), ['test1', 'test2', 'test3'])
+        self.assertEqual(find_jobs(self.conn, ['q1']), [])
+        self.assertEqual(find_jobs(self.conn, ['q1', 'q3', 'q4']), ['test2'])
+        self.assertEqual(find_jobs(self.conn, ['q1', 'q3', 'q5']), ['test3'])
+        self.assertEqual(find_jobs(self.conn, ['q1', 'q2', 'q3', 'q4', 'q5']), ['test1', 'test2', 'test3'])
 
     def test_index_and_find_jobs_levels(self):
-        print "now testing find jobs with levels ..."
+        print("now testing find jobs with levels ...")
         index_job_levels(self.conn, "job1" ,[('q1', 1)])
         index_job_levels(self.conn, "job2", [('q1', 0), ('q2', 2)])
 
-        self.assertEquals(search_job_levels(self.conn, [('q1', 0)]), [])
-        self.assertEquals(search_job_levels(self.conn, [('q1', 1)]), ['job1'])
-        self.assertEquals(search_job_levels(self.conn, [('q1', 2)]), ['job1'])
-        self.assertEquals(search_job_levels(self.conn, [('q2', 1)]), [])
-        self.assertEquals(search_job_levels(self.conn, [('q2', 2)]), [])
-        self.assertEquals(search_job_levels(self.conn, [('q1', 0), ('q2', 1)]), [])
-        self.assertEquals(search_job_levels(self.conn, [('q1', 0), ('q2', 2)]), ['job2'])
-        self.assertEquals(search_job_levels(self.conn, [('q1', 1), ('q2', 1)]), ['job1'])
-        self.assertEquals(search_job_levels(self.conn, [('q1', 1), ('q2', 2)]), ['job1', 'job2'])
-        print "which passed"
+        self.assertEqual(search_job_levels(self.conn, [('q1', 0)]), [])
+        self.assertEqual(search_job_levels(self.conn, [('q1', 1)]), ['job1'])
+        self.assertEqual(search_job_levels(self.conn, [('q1', 2)]), ['job1'])
+        self.assertEqual(search_job_levels(self.conn, [('q2', 1)]), [])
+        self.assertEqual(search_job_levels(self.conn, [('q2', 2)]), [])
+        self.assertEqual(search_job_levels(self.conn, [('q1', 0), ('q2', 1)]), [])
+        self.assertEqual(search_job_levels(self.conn, [('q1', 0), ('q2', 2)]), ['job2'])
+        self.assertEqual(search_job_levels(self.conn, [('q1', 1), ('q2', 1)]), ['job1'])
+        self.assertEqual(search_job_levels(self.conn, [('q1', 1), ('q2', 2)]), ['job1', 'job2'])
+        print("which passed")
 
     def test_index_and_find_jobs_years(self):
-        print "now testing find jobs with years ..."
+        print("now testing find jobs with years ...")
         index_job_years(self.conn, "job1",[('q1',1)])
         index_job_years(self.conn, "job2",[('q1',0),('q2',2)])
 
-        self.assertEquals(search_job_years(self.conn, [('q1',0)]), [])
-        self.assertEquals(search_job_years(self.conn, [('q1',1)]), ['job1'])
-        self.assertEquals(search_job_years(self.conn, [('q1',2)]), ['job1'])
-        self.assertEquals(search_job_years(self.conn, [('q2',1)]), [])
-        self.assertEquals(search_job_years(self.conn, [('q2',2)]), [])
-        self.assertEquals(search_job_years(self.conn, [('q1',0), ('q2', 1)]), [])
-        self.assertEquals(search_job_years(self.conn, [('q1',0), ('q2', 2)]), ['job2'])
-        self.assertEquals(search_job_years(self.conn, [('q1',1), ('q2', 1)]), ['job1'])
-        self.assertEquals(search_job_years(self.conn, [('q1',1), ('q2', 2)]), ['job1','job2'])
-        print "which passed"
+        self.assertEqual(search_job_years(self.conn, [('q1',0)]), [])
+        self.assertEqual(search_job_years(self.conn, [('q1',1)]), ['job1'])
+        self.assertEqual(search_job_years(self.conn, [('q1',2)]), ['job1'])
+        self.assertEqual(search_job_years(self.conn, [('q2',1)]), [])
+        self.assertEqual(search_job_years(self.conn, [('q2',2)]), [])
+        self.assertEqual(search_job_years(self.conn, [('q1',0), ('q2', 1)]), [])
+        self.assertEqual(search_job_years(self.conn, [('q1',0), ('q2', 2)]), ['job2'])
+        self.assertEqual(search_job_years(self.conn, [('q1',1), ('q2', 1)]), ['job1'])
+        self.assertEqual(search_job_years(self.conn, [('q1',1), ('q2', 2)]), ['job1','job2'])
+        print("which passed")
 
 if __name__ == '__main__':
     unittest.main()

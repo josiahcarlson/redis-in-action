@@ -5,7 +5,7 @@ from datetime import date
 from decimal import Decimal
 import functools
 import json
-from Queue import Empty, Queue
+from queue import Empty, Queue
 import threading
 import time
 import unittest
@@ -43,7 +43,7 @@ def redis_connection(component, wait=1):                        #A
                 config_connection, 'redis', component, wait)    #G
 
             config = {}
-            for k, v in _config.iteritems():                    #L
+            for k, v in _config.items():                    #L
                 config[k.encode('utf-8')] = v                   #L
 
             if config != old_config:                            #H
@@ -92,7 +92,7 @@ def search_and_sort(conn, query, id=None, ttl=300, sort="-updated", #A
 def zintersect(conn, keys, ttl):
     id = str(uuid.uuid4())
     conn.zinterstore('idx:' + id,
-        dict(('idx:'+k, v) for k,v in keys.iteritems()))
+        dict(('idx:'+k, v) for k,v in keys.items()))
     conn.expire('idx:' + id, ttl)
     return id
 
@@ -131,7 +131,7 @@ HOME_TIMELINE_SIZE = 1000
 POSTS_PER_PASS = 1000
 
 def shard_key(base, key, total_elements, shard_size):   #A
-    if isinstance(key, (int, long)) or key.isdigit():   #B
+    if isinstance(key, int) or key.isdigit():   #B
         shard_id = int(str(key), 10) // shard_size      #C
     else:
         shards = 2 * total_elements // shard_size       #D
@@ -241,7 +241,7 @@ def search_get_values(conn, query, id=None, ttl=300, sort="-updated", #A
         pipe.hget(key%docid, sort)                                  #C
     sort_column = pipe.execute()                                    #C
 
-    data_pairs = zip(docids, sort_column)                           #D
+    data_pairs = list(zip(docids, sort_column))                           #D
     return count, data_pairs, id                                    #E
 # <end id="search-with-values"/>
 #A We need to take all of the same parameters to pass on to search_and_sort()
@@ -258,7 +258,7 @@ def get_shard_results(component, shards, query, ids=None, ttl=300,  #A
     count = 0       #B
     data = []       #B
     ids = ids or shards * [None]       #C
-    for shard in xrange(shards):
+    for shard in range(shards):
         conn = get_redis_connection('%s:%s'%(component, shard), wait)#D
         c, d, i = search_get_values(                        #E
             conn, query, ids[shard], ttl, sort, start, num) #E
@@ -289,7 +289,7 @@ def get_shard_results_thread(component, shards, query, ids=None, ttl=300,
     ids = ids or shards * [None]
     rqueue = Queue()
 
-    for shard in xrange(shards):
+    for shard in range(shards):
         t = threading.Thread(target=get_values_thread, args=(
             component, shard, wait, rqueue, query, ids[shard],
             ttl, sort, start, num))
@@ -379,7 +379,7 @@ def search_shards_zset(component, shards, query, ids=None, ttl=300,   #A
     count = 0                       #B
     data = []                       #B
     ids = ids or shards * [None]    #C
-    for shard in xrange(shards):
+    for shard in range(shards):
         conn = get_redis_connection('%s:%s'%(component, shard), wait) #D
         c, d, i = search_get_zset_values(conn, query, ids[shard],     #E
             ttl, update, vote, start, num, desc)                      #E
@@ -432,7 +432,7 @@ def follow_user(conn, uid, other_uid):
     fkey2 = 'followers:%s'%other_uid
 
     if conn.zscore(fkey1, other_uid):
-        print "already followed", uid, other_uid
+        print("already followed", uid, other_uid)
         return None
 
     now = time.time()
@@ -474,7 +474,7 @@ class KeyDataShardedConnection(object):
         self.component = component                  #A
         self.shards = shards                        #A
     def __getitem__(self, ids):                     #B
-        id1, id2 = map(int, ids)                    #C
+        id1, id2 = list(map(int, ids))                    #C
         if id2 < id1:                               #D
             id1, id2 = id2, id1                     #D
         key = "%s:%s"%(id1, id2)                    #E
@@ -536,7 +536,7 @@ def follow_user(conn, uid, other_uid):
 # <start id="sharded-zrangebyscore"/>
 def sharded_zrangebyscore(component, shards, key, min, max, num):   #A
     data = []
-    for shard in xrange(shards):
+    for shard in range(shards):
         conn = get_redis_connection("%s:%s"%(component, shard))     #B
         data.extend(conn.zrangebyscore(                             #C
             key, min, max, start=0, num=num, withscores=True))      #C
@@ -574,7 +574,7 @@ def syndicate_status(uid, post, start=0, on_lists=False):
             timeline, sharded_timelines.shards, 2)          #D
         to_send[shard].append(timeline)                     #E
 
-    for timelines in to_send.itervalues():
+    for timelines in to_send.values():
         pipe = sharded_timelines[timelines[0]].pipeline(False)  #F
         for timeline in timelines:
             pipe.zadd(timeline, **post)                 #G
@@ -602,7 +602,7 @@ def syndicate_status(uid, post, start=0, on_lists=False):
 
 def _fake_shards_for(conn, component, count, actual):
     assert actual <= 4
-    for i in xrange(count):
+    for i in range(count):
         m = i % actual
         conn.set('config:redis:%s:%i'%(component, i), json.dumps({'db':14 - m}))
 
@@ -627,22 +627,22 @@ class TestCh10(unittest.TestCase):
     def test_get_sharded_connections(self):
         _fake_shards_for(self.conn, 'shard', 2, 2)
 
-        for i in xrange(10):
+        for i in range(10):
             get_sharded_connection('shard', i, 2).sadd('foo', i)
 
         s0 = redis.Redis(db=14).scard('foo')
         s1 = redis.Redis(db=13).scard('foo')
         self.assertTrue(s0 < 10)
         self.assertTrue(s1 < 10)
-        self.assertEquals(s0 + s1, 10)
+        self.assertEqual(s0 + s1, 10)
 
     def test_count_visit(self):
         shards = {'db':13}, {'db':14}
         self.conn.set('config:redis:unique', json.dumps({'db':15}))
-        for i in xrange(16):
+        for i in range(16):
             self.conn.set('config:redis:unique:%s'%i, json.dumps(shards[i&1]))
     
-        for i in xrange(100):
+        for i in range(100):
             count_visit(str(uuid.uuid4()))
         base = 'unique:%s'%date.today().isoformat()
         total = 0
@@ -652,18 +652,18 @@ class TestCh10(unittest.TestCase):
             for k in keys:
                 cnt = conn.scard(k)
                 total += cnt
-        self.assertEquals(total, 100)
-        self.assertEquals(self.conn.get(base), '100')
+        self.assertEqual(total, 100)
+        self.assertEqual(self.conn.get(base), '100')
 
     def test_sharded_search(self):
         _fake_shards_for(self.conn, 'search', 2, 2)
         
         docs = 'hello world how are you doing'.split(), 'this world is doing fine'.split()
-        for i in xrange(50):
+        for i in range(50):
             c = get_sharded_connection('search', i, 2)
             index_document(c, i, docs[i&1], {'updated':time.time() + i, 'id':i, 'created':time.time() + i})
             r = search_and_sort(c, docs[i&1], sort='-id')
-            self.assertEquals(r[1][0], str(i))
+            self.assertEqual(r[1][0], str(i))
 
         total = 0
         for shard in (0,1):
@@ -672,44 +672,44 @@ class TestCh10(unittest.TestCase):
             self.assertTrue(count < 50)
             self.assertTrue(count > 0)
         
-        self.assertEquals(total, 25)
+        self.assertEqual(total, 25)
         
         count, r, id = get_shard_results('search', 2, ['world', 'doing'], num=50)
-        self.assertEquals(count, 50)
-        self.assertEquals(count, len(r))
+        self.assertEqual(count, 50)
+        self.assertEqual(count, len(r))
         
-        self.assertEquals(get_shard_results('search', 2, ['this', 'doing'], num=50)[0], 25)
+        self.assertEqual(get_shard_results('search', 2, ['this', 'doing'], num=50)[0], 25)
 
         count, r, id = get_shard_results_thread('search', 2, ['this', 'doing'], num=50)
-        self.assertEquals(count, 25)
-        self.assertEquals(count, len(r))
+        self.assertEqual(count, 25)
+        self.assertEqual(count, len(r))
         r.sort(key=lambda x:x[1], reverse=True)
         r = list(zip(*r)[0])
         
         count, r2, id = search_shards('search', 2, ['this', 'doing'])
-        self.assertEquals(count, 25)
-        self.assertEquals(len(r2), 20)
-        self.assertEquals(r2, r[:20])
+        self.assertEqual(count, 25)
+        self.assertEqual(len(r2), 20)
+        self.assertEqual(r2, r[:20])
         
     def test_sharded_follow_user(self):
         _fake_shards_for(self.conn, 'timelines', 8, 4)
 
         sharded_timelines['profile:1'].zadd('profile:1', 1, time.time())
-        for u2 in xrange(2, 11):
+        for u2 in range(2, 11):
             sharded_timelines['profile:%i'%u2].zadd('profile:%i'%u2, u2, time.time() + u2)
             _follow_user(self.conn, 1, u2)
             _follow_user(self.conn, u2, 1)
         
-        self.assertEquals(self.conn.zcard('followers:1'), 9)
-        self.assertEquals(self.conn.zcard('following:1'), 9)
-        self.assertEquals(sharded_timelines['home:1'].zcard('home:1'), 9)
+        self.assertEqual(self.conn.zcard('followers:1'), 9)
+        self.assertEqual(self.conn.zcard('following:1'), 9)
+        self.assertEqual(sharded_timelines['home:1'].zcard('home:1'), 9)
         
-        for db in xrange(14, 10, -1):
-            self.assertTrue(len(redis.Redis(db=db).keys()) > 0)
-        for u2 in xrange(2, 11):
-            self.assertEquals(self.conn.zcard('followers:%i'%u2), 1)
-            self.assertEquals(self.conn.zcard('following:%i'%u2), 1)
-            self.assertEquals(sharded_timelines['home:%i'%u2].zcard('home:%i'%u2), 1)
+        for db in range(14, 10, -1):
+            self.assertTrue(len(list(redis.Redis(db=db).keys())) > 0)
+        for u2 in range(2, 11):
+            self.assertEqual(self.conn.zcard('followers:%i'%u2), 1)
+            self.assertEqual(self.conn.zcard('following:%i'%u2), 1)
+            self.assertEqual(sharded_timelines['home:%i'%u2].zcard('home:%i'%u2), 1)
 
     def test_sharded_follow_user_and_syndicate_status(self):
         _fake_shards_for(self.conn, 'timelines', 8, 4)
@@ -717,27 +717,27 @@ class TestCh10(unittest.TestCase):
         sharded_followers.shards = 4
     
         sharded_timelines['profile:1'].zadd('profile:1', 1, time.time())
-        for u2 in xrange(2, 11):
+        for u2 in range(2, 11):
             sharded_timelines['profile:%i'%u2].zadd('profile:%i'%u2, u2, time.time() + u2)
             follow_user(self.conn, 1, u2)
             follow_user(self.conn, u2, 1)
         
         allkeys = defaultdict(int)
-        for db in xrange(14, 10, -1):
+        for db in range(14, 10, -1):
             c = redis.Redis(db=db)
-            for k in c.keys():
+            for k in list(c.keys()):
                 allkeys[k] += c.zcard(k)
 
-        for k, v in allkeys.iteritems():
+        for k, v in allkeys.items():
             part, _, owner = k.partition(':')
             if part in ('following', 'followers', 'home'):
-                self.assertEquals(v, 9 if owner == '1' else 1)
+                self.assertEqual(v, 9 if owner == '1' else 1)
             elif part == 'profile':
-                self.assertEquals(v, 1)
+                self.assertEqual(v, 1)
 
-        self.assertEquals(len(sharded_zrangebyscore('followers', 4, 'followers:1', '0', 'inf', 100)), 9)
+        self.assertEqual(len(sharded_zrangebyscore('followers', 4, 'followers:1', '0', 'inf', 100)), 9)
         syndicate_status(1, {'11':time.time()})
-        self.assertEquals(len(sharded_zrangebyscore('timelines', 4, 'home:2', '0', 'inf', 100)), 2)
+        self.assertEqual(len(sharded_zrangebyscore('timelines', 4, 'home:2', '0', 'inf', 100)), 2)
 
 
 

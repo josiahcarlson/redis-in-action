@@ -109,7 +109,7 @@ Cleaning up...                                          #D
 
 '''
 # <start id="windows-python-install"/>
-C:\Users\josiah>c:\python27\python                                      #A
+C:\\Users\josiah>c:\python27\python                                      #A
 Python 2.7.3 (default, Apr 10 2012, 23:31:26) [MSC v.1500 32 bit...
 Type "help", "copyright", "credits" or "license" for more information.
 >>> from urllib import urlopen                                          #B
@@ -117,16 +117,16 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>> open('ez_setup.py', 'wb').write(data.read())                        #D
 >>> exit()                                                              #E
 
-C:\Users\josiah>c:\python27\python ez_setup.py                          #F
+C:\\Users\josiah>c:\python27\python ez_setup.py                          #F
 Downloading http://pypi.python.org/packages/2.7/s/setuptools/...        #G
 [trimmed]                                                               #G
 Finished processing dependencies for setuptools==0.6c11                 #G
 
-C:\Users\josiah>c:\python27\python -m easy_install redis                #H
+C:\\Users\josiah>c:\python27\python -m easy_install redis                #H
 Searching for redis                                                     #H
 [trimmed]                                                               #H
 Finished processing dependencies for redis                              #H
-C:\Users\josiah>
+C:\\Users\josiah>
 # <end id="windows-python-install"/>
 #A Start Python by itself in interactive mode
 #B Import the urlopen factory function from the urllib module
