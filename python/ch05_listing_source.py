@@ -14,6 +14,14 @@ import uuid
 
 import redis
 
+
+def to_bytes(x):
+    return x.encode() if isinstance(x, str) else x
+
+def to_str(x):
+    return x.decode() if isinstance(x, bytes) else x
+
+
 QUIT = False
 SAMPLE_COUNT = 100
 
@@ -63,14 +71,14 @@ def log_common(conn, name, message, severity=logging.INFO, timeout=5):
 
             existing = pipe.get(start_key)
             pipe.multi()                                        #H
-            if existing and existing < hour_start:              #G
+            if existing and existing < to_bytes(hour_start):    #G
                 pipe.rename(destination, destination + ':last') #I
                 pipe.rename(start_key, destination + ':pstart') #I
                 pipe.set(start_key, hour_start)                 #J
             elif not existing:                                  #J
                 pipe.set(start_key, hour_start)                 #J
 
-            pipe.zincrby(destination, message)                  #K
+            pipe.zincrby(destination, 1, message)               #K
             log_recent(pipe, name, message, severity, pipe)     #L
             return
         except redis.exceptions.WatchError:
@@ -100,7 +108,7 @@ def update_counter(conn, name, count=1, now=None):
     for prec in PRECISION:                              #D
         pnow = int(now / prec) * prec                   #E
         hash = '%s:%s'%(prec, name)                     #F
-        pipe.zadd('known:', hash, 0)                    #G
+        pipe.zadd('known:', {hash: 0})                  #G
         pipe.hincrby('count:' + hash, pnow, count)      #H
     pipe.execute()
 # <end id="update_counter"/>
@@ -143,14 +151,14 @@ def clean_counters(conn):
             if not hash:
                 break
             hash = hash[0]
-            prec = int(hash.partition(':')[0])                  #G
+            prec = int(hash.partition(b':')[0])                 #G
             bprec = int(prec // 60) or 1                        #H
             if passes % bprec:                                  #I
                 continue
 
-            hkey = 'count:' + hash
+            hkey = 'count:' + to_str(hash)
             cutoff = time.time() - SAMPLE_COUNT * prec          #J
-            samples = list(map(int, conn.hkeys(hkey)))                #K
+            samples = list(map(int, conn.hkeys(hkey)))          #K
             samples.sort()                                      #L
             remove = bisect.bisect_right(samples, cutoff)       #L
 
@@ -216,17 +224,17 @@ def update_stats(conn, context, type, value, timeout=5):
 
             tkey1 = str(uuid.uuid4())
             tkey2 = str(uuid.uuid4())
-            pipe.zadd(tkey1, 'min', value)                      #C
-            pipe.zadd(tkey2, 'max', value)                      #C
+            pipe.zadd(tkey1, {'min': value})                      #C
+            pipe.zadd(tkey2, {'max': value})                      #C
             pipe.zunionstore(destination,                       #D
                 [destination, tkey1], aggregate='min')          #D
             pipe.zunionstore(destination,                       #D
                 [destination, tkey2], aggregate='max')          #D
 
             pipe.delete(tkey1, tkey2)                           #E
-            pipe.zincrby(destination, 'count')                  #F
-            pipe.zincrby(destination, 'sum', value)             #F
-            pipe.zincrby(destination, 'sumsq', value*value)     #F
+            pipe.zincrby(destination, 1, 'count')               #F
+            pipe.zincrby(destination, value, 'sum')             #F
+            pipe.zincrby(destination, value*value, 'sumsq')     #F
 
             return pipe.execute()[-3:]                          #G
         except redis.exceptions.WatchError:
@@ -246,9 +254,9 @@ def update_stats(conn, context, type, value, timeout=5):
 def get_stats(conn, context, type):
     key = 'stats:%s:%s'%(context, type)                                 #A
     data = dict(conn.zrange(key, 0, -1, withscores=True))               #B
-    data['average'] = data['sum'] / data['count']                       #C
-    numerator = data['sumsq'] - data['sum'] ** 2 / data['count']        #D
-    data['stddev'] = (numerator / (data['count'] - 1 or 1)) ** .5       #E
+    data[b'average'] = data[b'sum'] / data[b'count']                    #C
+    numerator = data[b'sumsq'] - data[b'sum'] ** 2 / data[b'count']     #D
+    data[b'stddev'] = (numerator / (data[b'count'] - 1 or 1)) ** .5     #E
     return data
 # <end id="get_stats"/>
 #A Set up the key that we are fetching our statistics from
@@ -270,7 +278,7 @@ def access_time(conn, context):
     average = stats[1] / stats[0]                                       #F
 
     pipe = conn.pipeline(True)
-    pipe.zadd('slowest:AccessTime', context, average)                   #G
+    pipe.zadd('slowest:AccessTime', {context: average})                 #G
     pipe.zremrangebyrank('slowest:AccessTime', 0, -101)                 #H
     pipe.execute()
 # <end id="access_time_context_manager"/>
@@ -318,7 +326,7 @@ def import_ips_to_redis(conn, filename):                #A
             continue                                    #C
 
         city_id = row[2] + '_' + str(count)             #D
-        conn.zadd('ip2cityid:', city_id, start_ip)      #E
+        conn.zadd('ip2cityid:', {city_id: start_ip})    #E
 # <end id="_1314_14473_9191"/>
 #A Should be run with the location of the GeoLiteCity-Blocks.csv file
 #B Convert the IP address to a score as necessary
@@ -372,7 +380,7 @@ IS_UNDER_MAINTENANCE = False
 def is_under_maintenance(conn):
     global LAST_CHECKED, IS_UNDER_MAINTENANCE   #A
 
-    if LAST_CHECKED < time.time() - 1:          #B
+    if (not LAST_CHECKED) or LAST_CHECKED < time.time() - 1:          #B
         LAST_CHECKED = time.time()              #C
         IS_UNDER_MAINTENANCE = bool(            #D
             conn.get('is-under-maintenance'))   #D
@@ -401,7 +409,8 @@ CHECKED = {}
 def get_config(conn, type, component, wait=1):
     key = 'config:%s:%s'%(type, component)
 
-    if CHECKED.get(key) < time.time() - wait:           #A
+    ch = CHECKED.get(key)
+    if (not ch) or ch < time.time() - wait:             #A
         CHECKED[key] = time.time()                      #B
         config = json.loads(conn.get(key) or '{}')      #C
         config = dict((str(k), config[k]) for k in config)#G
@@ -430,12 +439,8 @@ def redis_connection(component, wait=1):                        #A
         @functools.wraps(function)                              #D
         def call(*args, **kwargs):                              #E
             old_config = CONFIGS.get(key, object())             #F
-            _config = get_config(                               #G
+            config = get_config(                                #G
                 config_connection, 'redis', component, wait)    #G
-
-            config = {}
-            for k, v in _config.items():                    #L
-                config[k.encode('utf-8')] = v                   #L
 
             if config != old_config:                            #H
                 REDIS_CONNECTIONS[key] = redis.Redis(**config)  #H
@@ -494,7 +499,7 @@ def import_ips_to_redis(conn, filename):
             continue
 
         city_id = row[2] + '_' + str(count)
-        pipe.zadd('ip2cityid:', city_id, start_ip)
+        pipe.zadd('ip2cityid:', {city_id: start_ip})
         if not (count+1) % 1000:
             pipe.execute()
     pipe.execute()
@@ -606,7 +611,7 @@ class TestCh05(unittest.TestCase):
         rr = get_stats(conn, 'temp', 'example')
         print("Which we can also fetch manually:")
         pprint.pprint(rr)
-        self.assertTrue(rr['count'] >= 5)
+        self.assertTrue(rr[b'count'] >= 5)
 
     def test_access_time(self):
         import pprint
