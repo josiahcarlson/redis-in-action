@@ -516,13 +516,13 @@ class TestCh09(unittest.TestCase):
         
         for i in range(179):
             count_visit(self.conn, str(uuid.uuid4()))
-        self.assertEqual(self.conn.get('unique:%s'%(date.today().isoformat())), '179')
+        self.assertEqual(self.conn.get('unique:%s'%(date.today().isoformat())), b'179')
 
         self.conn.flushdb()
         self.conn.set('unique:%s'%((date.today() - timedelta(days=1)).isoformat()), 1000)
         for i in range(183):
             count_visit(self.conn, str(uuid.uuid4()))
-        self.assertEqual(self.conn.get('unique:%s'%(date.today().isoformat())), '183')
+        self.assertEqual(self.conn.get('unique:%s'%(date.today().isoformat())), b'183')
 
     def test_user_location(self):
         i = 0

@@ -15,6 +15,12 @@ import urllib.parse
 
 import redis
 
+def to_bytes(x):
+    return x.encode() if isinstance(x, str) else x
+
+def to_str(x):
+    return x.decode() if isinstance(x, bytes) else x
+
 def acquire_lock_with_timeout(
     conn, lockname, acquire_timeout=10, lock_timeout=10):
     identifier = str(uuid.uuid4())                      #A
@@ -36,6 +42,7 @@ def acquire_lock_with_timeout(
 def release_lock(conn, lockname, identifier):
     pipe = conn.pipeline(True)
     lockname = 'lock:' + lockname
+    identifier = to_bytes(identifier)
 
     while True:
         try:
@@ -174,7 +181,7 @@ def get_status_messages(conn, uid, timeline='home:', page=1, count=30):#A
 
     pipeline = conn.pipeline(True)
     for id in statuses:                                         #C
-        pipeline.hgetall('status:%s'%id)                        #C
+        pipeline.hgetall('status:%s'%(to_str(id),))             #C
 
     return [_f for _f in pipeline.execute() if _f]                     #D
 # <end id="fetch-page"/>
@@ -196,8 +203,8 @@ def follow_user(conn, uid, other_uid):
     now = time.time()
 
     pipeline = conn.pipeline(True)
-    pipeline.zadd(fkey1, other_uid, now)    #C
-    pipeline.zadd(fkey2, uid, now)          #C
+    pipeline.zadd(fkey1, {other_uid: now})    #C
+    pipeline.zadd(fkey2, {uid: now})          #C
     pipeline.zrevrange('profile:%s'%other_uid,      #E
         0, HOME_TIMELINE_SIZE-1, withscores=True)   #E
     following, followers, status_and_score = pipeline.execute()[-3:]
@@ -205,7 +212,7 @@ def follow_user(conn, uid, other_uid):
     pipeline.hincrby('user:%s'%uid, 'following', int(following))        #F
     pipeline.hincrby('user:%s'%other_uid, 'followers', int(followers))  #F
     if status_and_score:
-        pipeline.zadd('home:%s'%uid, **dict(status_and_score))  #G
+        pipeline.zadd('home:%s'%uid, dict(status_and_score))  #G
     pipeline.zremrangebyrank('home:%s'%uid, 0, -HOME_TIMELINE_SIZE-1)#G
 
     pipeline.execute()
@@ -263,6 +270,7 @@ def refill_timeline(conn, incoming, timeline, start=0):
 
     pipeline = conn.pipeline(False)
     for uid, start in users:
+        uid = to_str(uid)
         pipeline.zrevrange('profile:%s'%uid,                    #C
             0, HOME_TIMELINE_SIZE-1, withscores=True)           #C
 
@@ -275,7 +283,7 @@ def refill_timeline(conn, incoming, timeline, start=0):
 
     pipeline = conn.pipeline(True)
     if messages:
-        pipeline.zadd(timeline, **dict(messages))           #F
+        pipeline.zadd(timeline, dict(messages))           #F
     pipeline.zremrangebyrank(                               #G
         timeline, 0, -HOME_TIMELINE_SIZE-1)                 #G
     pipeline.execute()
@@ -306,14 +314,14 @@ def follow_user_list(conn, other_uid, list_id):
     now = time.time()
 
     pipeline = conn.pipeline(True)
-    pipeline.zadd(fkey1, other_uid, now)        #C
-    pipeline.zadd(fkey2, list_id, now)          #C
+    pipeline.zadd(fkey1, {other_uid: now})        #C
+    pipeline.zadd(fkey2, {list_id: now})          #C
     pipeline.zrevrange('profile:%s'%other_uid,      #D
         0, HOME_TIMELINE_SIZE-1, withscores=True)   #D
     following, followers, status_and_score = pipeline.execute()[-3:]
 
     pipeline.hincrby('list:%s'%list_id, 'following', int(following))    #E
-    pipeline.zadd(timeline, **dict(status_and_score))           #F
+    pipeline.zadd(timeline, dict(status_and_score))           #F
     pipeline.zremrangebyrank(timeline, 0, -HOME_TIMELINE_SIZE-1)#F
 
     pipeline.execute()
@@ -376,7 +384,7 @@ def create_user_list(conn, uid, name):
     now = time.time()
 
     pipeline = conn.pipeline(True)
-    pipeline.zadd('lists:%s'%uid, **{id: now})  #D
+    pipeline.zadd('lists:%s'%uid, {id: now})  #D
     pipeline.hmset('list:%s'%id, {              #E
         'name': name,                           #E
         'id': id,                               #E
@@ -408,9 +416,9 @@ def post_status(conn, uid, message, **data):
         return None                                 #D
 
     post = {str(id): float(posted)}
-    conn.zadd('profile:%s'%uid, **post)             #E
+    conn.zadd('profile:%s'%uid, post)               #E
 
-    syndicate_status(conn, uid, post)       #F
+    syndicate_status(conn, uid, post)         #F
     return id
 # <end id="post-message"/>
 #A Create a status message using the earlier function
@@ -429,7 +437,8 @@ def syndicate_status(conn, uid, post, start=0):
 
     pipeline = conn.pipeline(False)
     for follower, start in followers:                    #E
-        pipeline.zadd('home:%s'%follower, **post)        #C
+        follower = to_str(follower)
+        pipeline.zadd('home:%s'%follower, post)          #C
         pipeline.zremrangebyrank(                        #C
             'home:%s'%follower, 0, -HOME_TIMELINE_SIZE-1)#C
     pipeline.execute()
@@ -457,7 +466,8 @@ def syndicate_status_list(conn, uid, post, start=0, on_lists=False):
 
     pipeline = conn.pipeline(False)
     for follower, start in followers:                   #C
-        pipeline.zadd(base%follower, **post)            #C
+        follower = to_str(follower)
+        pipeline.zadd(base%follower, post)              #C
         pipeline.zremrangebyrank(                       #C
             base%follower, 0, -HOME_TIMELINE_SIZE-1)    #C
     pipeline.execute()
@@ -479,15 +489,17 @@ def syndicate_status_list(conn, uid, post, start=0, on_lists=False):
 
 # <start id="delete-message"/>
 def delete_status(conn, uid, status_id):
+    status_id = to_str(status_id)
     key = 'status:%s'%status_id
     lock = acquire_lock_with_timeout(conn, key, 1)  #A
     if not lock:                #B
         return None             #B
 
-    if conn.hget(key, 'uid') != str(uid):   #C
+    if conn.hget(key, 'uid') != to_bytes(uid): #C
         release_lock(conn, key, lock)       #C
         return None                         #C
 
+    uid = to_str(uid)
     pipeline = conn.pipeline(True)
     pipeline.delete(key)                            #D
     pipeline.zrem('profile:%s'%uid, status_id)      #E
@@ -509,6 +521,8 @@ def delete_status(conn, uid, status_id):
 
 # <start id="exercise-clean-out-timelines"/>
 def clean_timelines(conn, uid, status_id, start=0, on_lists=False):
+    uid = to_str(uid)
+    status_id = to_str(status_id)
     key = 'followers:%s'%uid            #A
     base = 'home:%s'                    #A
     if on_lists:                        #A
@@ -519,6 +533,7 @@ def clean_timelines(conn, uid, status_id, start=0, on_lists=False):
 
     pipeline = conn.pipeline(False)
     for follower, start in followers:                    #C
+        follower = to_str(follower)
         pipeline.zrem(base%follower, status_id)          #C
     pipeline.execute()
 
@@ -667,7 +682,7 @@ def create_status(conn, uid, message, **data):
         'posted': time.time(),
         'id': id,
         'uid': uid,
-        'login': login,
+        'login': to_str(login),
     })
     pipeline.hmset('status:%s'%id, data)
     pipeline.hincrby('user:%s'%uid, 'posts')
@@ -681,17 +696,21 @@ def create_status(conn, uid, message, **data):
 _delete_status = delete_status
 # <start id="delete-message-streaming"/>
 def delete_status(conn, uid, status_id):
+    # raise Exception("what the fuck")
+    status_id = to_str(status_id)
     key = 'status:%s'%status_id
     lock = acquire_lock_with_timeout(conn, key, 1)
     if not lock:
         return None
 
-    if conn.hget(key, 'uid') != str(uid):
+    if conn.hget(key, 'uid') != to_bytes(uid):
         release_lock(conn, key, lock)
         return None
 
+    uid = to_str(uid)
     pipeline = conn.pipeline(True)
     status = conn.hgetall(key)                                  #A
+    status = {to_str(k):to_str(v) for k,v in status.items()}
     status['deleted'] = True                                    #B
     pipeline.publish('streaming:status:', json.dumps(status))   #C
     pipeline.delete(key)
@@ -885,7 +904,7 @@ class TestCh08(unittest.TestCase):
         self.assertEqual(create_user(self.conn, 'TestUser', 'Test User2'), None)
 
         self.assertEqual(create_status(self.conn, 1, "This is a new status message"), 1)
-        self.assertEqual(self.conn.hget('user:1', 'posts'), '1')
+        self.assertEqual(self.conn.hget('user:1', 'posts'), b'1')
 
     def test_follow_unfollow_user(self):
         self.assertEqual(create_user(self.conn, 'TestUser', 'Test User'), 1)
@@ -896,10 +915,10 @@ class TestCh08(unittest.TestCase):
         self.assertEqual(self.conn.zcard('followers:1'), 0)
         self.assertEqual(self.conn.zcard('following:1'), 1)
         self.assertEqual(self.conn.zcard('following:2'), 0)
-        self.assertEqual(self.conn.hget('user:1', 'following'), '1')
-        self.assertEqual(self.conn.hget('user:2', 'following'), '0')
-        self.assertEqual(self.conn.hget('user:1', 'followers'), '0')
-        self.assertEqual(self.conn.hget('user:2', 'followers'), '1')
+        self.assertEqual(self.conn.hget('user:1', 'following'), b'1')
+        self.assertEqual(self.conn.hget('user:2', 'following'), b'0')
+        self.assertEqual(self.conn.hget('user:1', 'followers'), b'0')
+        self.assertEqual(self.conn.hget('user:2', 'followers'), b'1')
 
         self.assertEqual(unfollow_user(self.conn, 2, 1), None)
         self.assertEqual(unfollow_user(self.conn, 1, 2), True)
@@ -907,17 +926,17 @@ class TestCh08(unittest.TestCase):
         self.assertEqual(self.conn.zcard('followers:1'), 0)
         self.assertEqual(self.conn.zcard('following:1'), 0)
         self.assertEqual(self.conn.zcard('following:2'), 0)
-        self.assertEqual(self.conn.hget('user:1', 'following'), '0')
-        self.assertEqual(self.conn.hget('user:2', 'following'), '0')
-        self.assertEqual(self.conn.hget('user:1', 'followers'), '0')
-        self.assertEqual(self.conn.hget('user:2', 'followers'), '0')
+        self.assertEqual(self.conn.hget('user:1', 'following'), b'0')
+        self.assertEqual(self.conn.hget('user:2', 'following'), b'0')
+        self.assertEqual(self.conn.hget('user:1', 'followers'), b'0')
+        self.assertEqual(self.conn.hget('user:2', 'followers'), b'0')
         
     def test_syndicate_status(self):
         self.assertEqual(create_user(self.conn, 'TestUser', 'Test User'), 1)
         self.assertEqual(create_user(self.conn, 'TestUser2', 'Test User2'), 2)
         self.assertTrue(follow_user(self.conn, 1, 2))
         self.assertEqual(self.conn.zcard('followers:2'), 1)
-        self.assertEqual(self.conn.hget('user:1', 'following'), '1')
+        self.assertEqual(self.conn.hget('user:1', 'following'), b'1')
         self.assertEqual(post_status(self.conn, 2, 'this is some message content'), 1)
         self.assertEqual(len(get_status_messages(self.conn, 1)), 1)
 
@@ -959,13 +978,14 @@ class TestCh08(unittest.TestCase):
         messages = get_status_messages(self.conn, 1)
         self.assertEqual(len(messages), 5)
         for msg in messages:
-            self.assertEqual(msg['uid'], '3')
+            self.assertEqual(msg[b'uid'], b'3')
         
-        delete_status(self.conn, '3', messages[-1]['id'])
+        delete_status(self.conn, '3', messages[-1][b'id'])
         self.assertEqual(len(get_status_messages(self.conn, 1)), 4)
         self.assertEqual(self.conn.zcard('home:1'), 5)
-        clean_timelines(self.conn, '3', messages[-1]['id'])
+        clean_timelines(self.conn, '3', messages[-1][b'id'])
         self.assertEqual(self.conn.zcard('home:1'), 4)
+
 
 if __name__ == '__main__':
     unittest.main()
