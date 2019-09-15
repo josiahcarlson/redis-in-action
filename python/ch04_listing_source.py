@@ -80,7 +80,7 @@ def process_logs(conn, path, callback):                     #K
 # <start id="wait-for-sync"/>
 def wait_for_sync(mconn, sconn):
     identifier = str(uuid.uuid4())
-    mconn.zadd('sync:wait', identifier, time.time())        #A
+    mconn.zadd('sync:wait', {identifier: time.time()})      #A
 
     while not sconn.info()['master_link_status'] != 'up':   #B
         time.sleep(.001)
@@ -152,7 +152,7 @@ def list_item(conn, itemid, sellerid, price):
                 return None
 
             pipe.multi()                             #C
-            pipe.zadd("market:", item, price)        #C
+            pipe.zadd("market:", {item: price})      #C
             pipe.srem(inventory, itemid)             #C
             pipe.execute()                           #F
             return True
@@ -210,11 +210,11 @@ def purchase_item(conn, buyerid, itemid, sellerid, lprice):
 def update_token(conn, token, user, item=None):
     timestamp = time.time()                             #A
     conn.hset('login:', token, user)                    #B
-    conn.zadd('recent:', token, timestamp)              #C
+    conn.zadd('recent:', {token: timestamp})            #C
     if item:
-        conn.zadd('viewed:' + token, item, timestamp)   #D
+        conn.zadd('viewed:' + token, {item: timestamp}) #D
         conn.zremrangebyrank('viewed:' + token, 0, -26) #E
-        conn.zincrby('viewed:', item, -1)               #F
+        conn.zincrby('viewed:', -1, item)               #F
 # <end id="update-token"/>
 #A Get the timestamp
 #B Keep a mapping from the token to the logged-in user
@@ -229,11 +229,11 @@ def update_token_pipeline(conn, token, user, item=None):
     timestamp = time.time()
     pipe = conn.pipeline(False)                         #A
     pipe.hset('login:', token, user)
-    pipe.zadd('recent:', token, timestamp)
+    pipe.zadd('recent:', {token: timestamp})
     if item:
-        pipe.zadd('viewed:' + token, item, timestamp)
+        pipe.zadd('viewed:' + token, {item: timestamp})
         pipe.zremrangebyrank('viewed:' + token, 0, -26)
-        pipe.zincrby('viewed:', item, -1)
+        pipe.zincrby('viewed:', -1, item)
     pipe.execute()                                      #B
 # <end id="update-token-pipeline"/>
 #A Set up the pipeline
@@ -323,7 +323,7 @@ class TestCh04(unittest.TestCase):
         print("The market contains:")
         pprint.pprint(r)
         self.assertTrue(r)
-        self.assertTrue(any(x[0] == 'itemX.userX' for x in r))
+        self.assertTrue(any(x[0] == b'itemX.userX' for x in r))
 
     def test_purchase_item(self):
         self.test_list_item()
@@ -335,7 +335,7 @@ class TestCh04(unittest.TestCase):
         r = conn.hgetall('users:userY')
         print("The user has some money:", r)
         self.assertTrue(r)
-        self.assertTrue(r.get('funds'))
+        self.assertTrue(r.get(b'funds'))
         print()
 
         print("Let's purchase an item")
@@ -348,7 +348,7 @@ class TestCh04(unittest.TestCase):
         i = conn.smembers('inventory:' + buyer)
         print("Their inventory is now:", i)
         self.assertTrue(i)
-        self.assertTrue('itemX' in i)
+        self.assertTrue(b'itemX' in i)
         self.assertEqual(conn.zscore('market:', 'itemX.userX'), None)
 
     def test_benchmark_update_token(self):
