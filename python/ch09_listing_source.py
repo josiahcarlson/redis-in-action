@@ -10,6 +10,14 @@ import uuid
 
 import redis
 
+
+def to_bytes(x):
+    return x.encode('latin-1') if isinstance(x, str) else x
+
+def to_str(x):
+    return x.decode('latin-1') if isinstance(x, bytes) else x
+
+
 def readblocks(conn, key, blocksize=2**17):
     lb = blocksize
     pos = 0
@@ -185,8 +193,7 @@ def shard_key(base, key, total_elements, shard_size):   #A
     if isinstance(key, int) or key.isdigit():   #B
         shard_id = int(str(key), 10) // shard_size      #C
     else:
-        if isinstance(key, str):
-            key = key.encode('latin-1')
+        key = to_bytes(key)
         shards = 2 * total_elements // shard_size       #D
         shard_id = binascii.crc32(key) % shards         #E
     return "%s:%s"%(base, shard_id)                     #F
@@ -394,11 +401,11 @@ def aggregate_location(conn):
     max_id = int(conn.zscore('location:max', 'max'))            #B
     max_block = max_id // USERS_PER_SHARD                       #B
 
-    for shard_id in range(max_block + 1):                      #C
+    for shard_id in range(max_block + 1):                       #C
         oblock = b''
         for block in readblocks(conn, 'location:%s'%shard_id):  #D
             oblock += block
-            for offset in range(0, len(block)-2, 2):           #E
+            for offset in range(0, len(block)-1, 2):            #E
                 code = block[offset:offset+2]
                 update_aggregates(countries, states, [code])    #F
             oblock = oblock[offset+2:]
@@ -419,7 +426,7 @@ def update_aggregates(countries, states, codes):
         if len(code) != 2:                              #A
             continue                                    #A
 
-        code = code.decode('latin-1')
+        code = to_str(code)
 
         country = ord(code[0]) - 1                      #B
         state = ord(code[1]) - 1                        #B
@@ -478,7 +485,7 @@ def aggregate_location_list(conn, user_ids):
 
 class TestCh09(unittest.TestCase):
     def setUp(self):
-        self.conn = redis.Redis(db=15)
+        self.conn = redis.Redis(db=15, encoding='latin-1')
         self.conn.flushdb()
     def tearDown(self):
         self.conn.flushdb()
@@ -501,9 +508,9 @@ class TestCh09(unittest.TestCase):
     def test_sharded_hash(self):
         for i in range(50):
             shard_hset(self.conn, 'test', 'keyname:%s'%i, i, 1000, 100)
-            self.assertEqual(shard_hget(self.conn, 'test', 'keyname:%s'%i, 1000, 100), str(i).encode())
+            self.assertEqual(shard_hget(self.conn, 'test', 'keyname:%s'%i, 1000, 100), to_bytes(str(i)))
             shard_hset(self.conn, 'test2', i, i, 1000, 100)
-            self.assertEqual(shard_hget(self.conn, 'test2', i, 1000, 100), str(i).encode())
+            self.assertEqual(shard_hget(self.conn, 'test2', i, 1000, 100), to_bytes(str(i)))
 
     def test_sharded_sadd(self):
         for i in range(50):
@@ -537,7 +544,7 @@ class TestCh09(unittest.TestCase):
         
         _countries, _states = aggregate_location(self.conn)
         countries, states = aggregate_location_list(self.conn, list(range(i+1)))
-        
+
         self.assertEqual(_countries, countries)
         self.assertEqual(_states, states)
 
