@@ -6,6 +6,14 @@ import unittest
 import urllib.parse
 import uuid
 
+
+def to_bytes(x):
+    return x.encode() if isinstance(x, str) else x
+
+def to_str(x):
+    return x.decode() if isinstance(x, bytes) else x
+
+
 # <start id="_1311_14471_8266"/>
 def check_token(conn, token):
     return conn.hget('login:', token)   #A
@@ -17,9 +25,9 @@ def check_token(conn, token):
 def update_token(conn, token, user, item=None):
     timestamp = time.time()                             #A
     conn.hset('login:', token, user)                    #B
-    conn.zadd('recent:', token, timestamp)              #C
+    conn.zadd('recent:', {token: timestamp})              #C
     if item:
-        conn.zadd('viewed:' + token, item, timestamp)   #D
+        conn.zadd('viewed:' + token, {item: timestamp})   #D
         conn.zremrangebyrank('viewed:' + token, 0, -26) #E
 # <end id="_1311_14471_8265"/>
 #A Get the timestamp
@@ -45,6 +53,7 @@ def clean_sessions(conn):
 
         session_keys = []                               #D
         for token in tokens:                            #D
+            token = to_str(token)
             session_keys.append('viewed:' + token)      #D
 
         conn.delete(*session_keys)                      #E
@@ -82,6 +91,7 @@ def clean_full_sessions(conn):
 
         session_keys = []
         for sess in sessions:
+            sess = to_str(sess)
             session_keys.append('viewed:' + sess)
             session_keys.append('cart:' + sess)                    #A
 
@@ -102,7 +112,7 @@ def cache_request(conn, request, callback):
 
     if not content:
         content = callback(request)                 #D
-        conn.setex(page_key, content, 300)          #E
+        conn.setex(page_key, 300, content)          #E
 
     return content                                  #F
 # <end id="_1311_14471_8291"/>
@@ -116,8 +126,8 @@ def cache_request(conn, request, callback):
 
 # <start id="_1311_14471_8287"/>
 def schedule_row_cache(conn, row_id, delay):
-    conn.zadd('delay:', row_id, delay)           #A
-    conn.zadd('schedule:', row_id, time.time())  #B
+    conn.zadd('delay:', {row_id: delay})           #A
+    conn.zadd('schedule:', {row_id: time.time()})  #B
 # <end id="_1311_14471_8287"/>
 #A Set the delay for the item first
 #B Schedule the item to be cached now
@@ -134,6 +144,7 @@ def cache_rows(conn):
             continue
 
         row_id = next[0][0]
+        row_id = to_str(row_id)
         delay = conn.zscore('delay:', row_id)                   #C
         if delay <= 0:
             conn.zrem('delay:', row_id)                         #D
@@ -142,8 +153,9 @@ def cache_rows(conn):
             continue
 
         row = Inventory.get(row_id)                             #E
-        conn.zadd('schedule:', row_id, now + delay)             #F
-        conn.set('inv:' + row_id, json.dumps(row.to_dict()))    #F
+        conn.zadd('schedule:', {row_id: now + delay})           #F
+        row = {to_str(k):to_str(v) for k,v in row.to_dict().items()}
+        conn.set('inv:' + row_id, json.dumps(row))    #F
 # <end id="_1311_14471_8292"/>
 #A Find the next row that should be cached (if any), including the timestamp, as a list of tuples with zero or one items
 #B No rows can be cached now, so wait 50 milliseconds and try again
@@ -157,11 +169,11 @@ def cache_rows(conn):
 def update_token(conn, token, user, item=None):
     timestamp = time.time()
     conn.hset('login:', token, user)
-    conn.zadd('recent:', token, timestamp)
+    conn.zadd('recent:', {token: timestamp})
     if item:
-        conn.zadd('viewed:' + token, item, timestamp)
+        conn.zadd('viewed:' + token, {item: timestamp})
         conn.zremrangebyrank('viewed:' + token, 0, -26)
-        conn.zincrby('viewed:', item, -1)                   #A
+        conn.zincrby('viewed:', -1, item)                   #A
 # <end id="_1311_14471_8298"/>
 #A The line we need to add to update_token()
 #END
@@ -324,7 +336,7 @@ class TestCh02(unittest.TestCase):
         result2 = cache_request(conn, url, None)
         print("We ended up getting the same response!", repr(result2))
 
-        self.assertEqual(result, result2)
+        self.assertEqual(to_bytes(result), to_bytes(result2))
 
         self.assertFalse(can_cache(conn, 'http://test.com/'))
         self.assertFalse(can_cache(conn, 'http://test.com/?item=itemX&_=1234536'))
