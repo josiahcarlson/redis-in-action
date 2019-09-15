@@ -164,7 +164,7 @@ def article_vote(conn, user, article):
 
     article_id = article.partition(':')[-1]         #D
     if conn.sadd('voted:' + article_id, user):      #E
-        conn.zincrby('score:', article, VOTE_SCORE) #E
+        conn.zincrby('score:', VOTE_SCORE, article) #E
         conn.hincrby(article, 'votes', 1)           #E
 # <end id="upvote-code"/>
 #A Prepare our constants
@@ -192,8 +192,8 @@ def post_article(conn, user, title, link):
         'votes': 1,                             #C
     })                                          #C
 
-    conn.zadd('score:', article, now + VOTE_SCORE)  #D
-    conn.zadd('time:', article, now)                #D
+    conn.zadd('score:', {article: now + VOTE_SCORE})#D
+    conn.zadd('time:', {article: now})              #D
 
     return article_id
 # <end id="post-article-code"/>
