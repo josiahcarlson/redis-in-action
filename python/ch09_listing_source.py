@@ -18,7 +18,7 @@ def readblocks(conn, key, blocksize=2**17):
         yield block                                         #C
         lb = len(block)                                     #C
         pos += lb                                           #C
-    yield ''
+    yield b''
 
 '''
 # <start id="ziplist-configuration-options"/>
@@ -185,6 +185,8 @@ def shard_key(base, key, total_elements, shard_size):   #A
     if isinstance(key, int) or key.isdigit():   #B
         shard_id = int(str(key), 10) // shard_size      #C
     else:
+        if isinstance(key, str):
+            key = key.encode('latin-1')
         shards = 2 * total_elements // shard_size       #D
         shard_id = binascii.crc32(key) % shards         #E
     return "%s:%s"%(base, shard_id)                     #F
@@ -369,7 +371,7 @@ def set_location(conn, user_id, country, state):
     pipe.setrange('location:%s'%shard_id, offset, code)     #E
 
     tkey = str(uuid.uuid4())                                #F
-    pipe.zadd(tkey, 'max', user_id)                         #F
+    pipe.zadd(tkey, {'max': user_id})                       #F
     pipe.zunionstore('location:max',                        #F
         [tkey, 'location:max'], aggregate='max')            #F
     pipe.delete(tkey)                                       #F
@@ -393,10 +395,13 @@ def aggregate_location(conn):
     max_block = max_id // USERS_PER_SHARD                       #B
 
     for shard_id in range(max_block + 1):                      #C
+        oblock = b''
         for block in readblocks(conn, 'location:%s'%shard_id):  #D
-            for offset in range(0, len(block)-1, 2):           #E
+            oblock += block
+            for offset in range(0, len(block)-2, 2):           #E
                 code = block[offset:offset+2]
                 update_aggregates(countries, states, [code])    #F
+            oblock = oblock[offset+2:]
 
     return countries, states
 # <end id="aggregate-population"/>
@@ -413,6 +418,8 @@ def update_aggregates(countries, states, codes):
     for code in codes:
         if len(code) != 2:                              #A
             continue                                    #A
+
+        code = code.decode('latin-1')
 
         country = ord(code[0]) - 1                      #B
         state = ord(code[1]) - 1                        #B
@@ -494,9 +501,9 @@ class TestCh09(unittest.TestCase):
     def test_sharded_hash(self):
         for i in range(50):
             shard_hset(self.conn, 'test', 'keyname:%s'%i, i, 1000, 100)
-            self.assertEqual(shard_hget(self.conn, 'test', 'keyname:%s'%i, 1000, 100), str(i))
+            self.assertEqual(shard_hget(self.conn, 'test', 'keyname:%s'%i, 1000, 100), str(i).encode())
             shard_hset(self.conn, 'test2', i, i, 1000, 100)
-            self.assertEqual(shard_hget(self.conn, 'test2', i, 1000, 100), str(i))
+            self.assertEqual(shard_hget(self.conn, 'test2', i, 1000, 100), str(i).encode())
 
     def test_sharded_sadd(self):
         for i in range(50):
