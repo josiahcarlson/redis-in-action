@@ -1,6 +1,8 @@
 package model
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"github.com/go-redis/redis/v7"
@@ -670,9 +672,9 @@ func (c *Client) ProcessLogsFromRedis(id int, callback func(string)) {
 				}
 
 				blockReader := c.readBlocks
-				//if strings.HasSuffix(logfile, ".zip") {
-				//	blockReader = c.readBlocksGz
-				//}
+				if strings.HasSuffix(logfile, ".gz") {
+					blockReader = c.readBlocksGz
+				}
 
 				for line := range c.readLines(ch + logfile, blockReader) {
 					if line == "" {
@@ -730,9 +732,24 @@ func (c *Client) readBlocks(key string) <- chan string {
 	return res
 }
 
-//TODO: achieve the func DailyCountryAggregate and readBlocksGz
-//func (c *Client) DailyCountryAggregate(line string) {
-//}
+func (c *Client) readBlocksGz(key string) <- chan string {
+	res := make(chan string)
+	go func() {
+		for temp := range c.readBlocks(key) {
+			blockreader, err := gzip.NewReader(bytes.NewReader([]byte(temp)))
+			block, _ := ioutil.ReadAll(blockreader)
+			if err != nil {
+				log.Println("gzip reader err in readBlocksGz: ", err)
+				continue
+			}
+			res <- string(block)
+		}
+		defer close(res)
+	}()
 
-//func (c *Client) readBlocksGz(key string) <- chan string {
+	return res
+}
+
+//TODO: achieve the func DailyCountryAggregate
+//func (c *Client) DailyCountryAggregate(line string) {
 //}

@@ -179,7 +179,7 @@ func Test(t *testing.T) {
 		tempFile2 := utils.GenerationFile(tempDirPath, "temp-2.txt",
 			strings.Repeat("many lines\n", 10000))
 		s2, _ := tempFile2.Seek(0, 1)
-		outFile := utils.GenerationZipFile(tempDirPath, "temp-3.zip")
+		outFile := utils.GenerationZipFile(tempDirPath, "temp-3.gz")
 		s3, _ := outFile.Seek(0, 1)
 		sizes = append(sizes, s1, s2, s3)
 		t.Log("Done.")
@@ -210,7 +210,10 @@ func Test(t *testing.T) {
 
 		t.Log("Files should have 1, 10000, and 100000 lines")
 		client.ProcessLogsFromRedis(0, callbackFunc)
-		t.Log(counts)
+		utils.AssertTrue(t, reflect.DeepEqual(counts, []int{1, 10000, 100000}))
+
+		t.Log("Let's wait for the copy thread to finish cleaning up...")
+		t.Log("Done Cleaning out Redis!")
 
 		defer func() {
 			client.Conn.FlushAll()

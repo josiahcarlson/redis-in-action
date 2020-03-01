@@ -1,0 +1,25 @@
+version: "3"
+
+networks:
+    my-test:
+        driver: bridge
+
+services: 
+    golang:
+        build: .
+        container_name: "redis-in-action-golang"
+        tty: true
+        volumes:
+            - .:/src/app
+        networks:
+            - my-test
+    
+    redis:
+        image: redis:6.0-rc-alpine
+        container_name: "redis-in-action-redis"
+        ports: 
+          - "6379:6379"
+        expose:
+          - "6379"
+        networks:
+            - my-test

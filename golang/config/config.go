@@ -1,9 +1,11 @@
 package config
 
+// config for redis
 var (
-	Addr     = "192.168.56.101:6379"
+	Addr     = "localhost:6379"
 	Password = ""
 	DB       = 0
 )
 
+// file path for Chapter05 
 const FilePath = "../Chapter05/GeoLite2-City-CSV_20200121/"
