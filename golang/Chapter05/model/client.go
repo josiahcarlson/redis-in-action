@@ -372,7 +372,7 @@ func (c *Client) IsUnderMaintenance() bool {
 func (c *Client) SetConfig(types, component string, config map[string]interface{}) {
 	val, err := json.Marshal(config)
 	if err != nil {
-		log.Fatalln("marshel in SetConfig err: ", err)
+		log.Fatalln("marshal in SetConfig err: ", err)
 	}
 	c.Conn.Set(fmt.Sprintf("config:%s:%s", types, component), val, 0)
 }

@@ -118,7 +118,7 @@ func (r *Client) CacheRows() {
 		next := r.Conn.ZRangeWithScores("schedule:", 0, 0).Val()
 		now := time.Now().Unix()
 		if len(next) == 0 || next[0].Score > float64(now) {
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(50 * time.Millisecond)
 			continue
 		}
 
@@ -135,7 +135,7 @@ func (r *Client) CacheRows() {
 		r.Conn.ZAdd("schedule:", &redis.Z{Member: rowId, Score: float64(now) + delay})
 		jsonRow, err := json.Marshal(row)
 		if err != nil {
-			log.Fatalf("marshel json failed, data is: %v, err is: %v\n", row, err)
+			log.Fatalf("marshal json failed, data is: %v, err is: %v\n", row, err)
 		}
 		r.Conn.Set("inv:"+rowId, jsonRow, 0)
 	}

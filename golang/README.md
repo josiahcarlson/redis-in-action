@@ -10,7 +10,7 @@ Rewrite the code from the amazing book Redis-In-Action using `golang` and `go-re
 
 #### Using Docker: 
 
-> Tips for Chinese users: check the Dockerfile before running,  uncomment line 4 and line 8, this will speed you building process.
+> Tips for Chinese users: check the Dockerfile before running,  uncomment line 4, this will speed you building process.
 
 - check the config messages in the config/config.go file first, you may need to set your config for redis
 - run `docker-compose up -d` in the directory.
