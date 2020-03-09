@@ -35,7 +35,7 @@ func (c *Client) LogRecent(name, message, severity string, pipeliner redis.Pipel
 		pipeliner = c.Conn.Pipeline()
 	}
 	pipeliner.LPush(destination, message)
-	pipeliner.LTrim(destination, 0, 90)
+	pipeliner.LTrim(destination, 0, 99)
 	if _, err := pipeliner.Exec(); err != nil {
 		log.Println("LogRecent pipline err: ", err)
 	}

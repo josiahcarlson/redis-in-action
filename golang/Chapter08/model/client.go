@@ -32,7 +32,6 @@ func (c *Client) CreateUser(login, name string) string {
 	}
 
 	if c.Conn.HGet("users:", llogin).Val() != "" {
-		//c.ReleaseLock("user:" + llogin, lock)
 		return ""
 	}
 
@@ -407,10 +406,6 @@ func (c *Client) ReleaseLock(lockname, identifier string) bool {
 		if err != nil {
 			log.Println("watch failed in ReleaseLock, err is: ", err)
 			return false
-		}
-
-		if !flag {
-			break
 		}
 	}
 	return true

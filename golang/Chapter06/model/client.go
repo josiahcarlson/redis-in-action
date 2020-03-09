@@ -203,10 +203,6 @@ func (c *Client) ReleaseLock(lockname, identifier string) bool {
 			log.Println("watch failed in ReleaseLock, err is: ", err)
 			return false
 		}
-
-		if !flag {
-			break
-		}
 	}
 	return true
 }
@@ -395,7 +391,7 @@ func (c *Client) PollQueue(channel chan struct{}) {
 	for !common.QUIT {
 		item := c.Conn.ZRangeWithScores("delayed:", 0, 0).Val()
 		if len(item) == 0 || int64(item[0].Score) > time.Now().UnixNano() {
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(10 * time.Millisecond)
 			continue
 		}
 
