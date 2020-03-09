@@ -49,7 +49,7 @@ func Test(t *testing.T) {
 		utils.AssertTrue(t, len(i) > 0)
 		utils.AssertTrue(t, client.Conn.ZScore("market:", "itemX.userX").Val() == 0)
 	})
-	defer client.Conn.FlushAll()
+	defer client.Conn.FlushDB()
 }
 
 func BenchmarkUpdateToken(b *testing.B) {
@@ -63,7 +63,7 @@ func BenchmarkUpdateToken(b *testing.B) {
 			count++
 			client.UpdateTokenPipeline("token", "user", "item")
 		}
-		defer client.Conn.FlushAll()
+		defer client.Conn.FlushDB()
 	})
 
 	b.Run("BenchmarkUpdateToken", func(b *testing.B) {
@@ -73,6 +73,6 @@ func BenchmarkUpdateToken(b *testing.B) {
 			count++
 			client.UpdateToken("token", "user", "item")
 		}
-		defer client.Conn.FlushAll()
+		defer client.Conn.FlushDB()
 	})
 }

@@ -81,7 +81,7 @@ func TestLoginCookies(t *testing.T) {
 		utils.AssertStringResult(t, result, result2)
 		utils.AssertFalse(t, client.CanCache("http://test.com/"))
 		utils.AssertFalse(t, client.CanCache("http://test.com/?item=itemX&_=1234536"))
-		client.Conn.FlushAll()
+		client.Conn.FlushDB()
 	})
 
 	t.Run("Test cache row", func(t *testing.T) {
@@ -118,7 +118,7 @@ func TestLoginCookies(t *testing.T) {
 		common.QUIT = true
 		time.Sleep(2 * time.Second)
 		utils.AssertThread(t, common.FLAG)
-		defer client.Conn.FlushAll()
+		defer client.Conn.FlushDB()
 	})
 }
 

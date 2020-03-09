@@ -62,7 +62,7 @@ func Test(t *testing.T) {
 		}
 		contacts = client.FetchAutoCompleteList("user", "contact-2-")
 		utils.AssertTrue(t, reflect.DeepEqual(equiv, contacts))
-		defer client.Conn.FlushAll()
+		defer client.Conn.FlushDB()
 	})
 
 	t.Run("Test address book autocomplete", func(t *testing.T) {
@@ -77,7 +77,7 @@ func Test(t *testing.T) {
 		t.Log("now let's try to find users with names starting with 'je':")
 		r := client.AutoCompleteOnPrefix("test", "je")
 		t.Log(r)
-		defer client.Conn.FlushAll()
+		defer client.Conn.FlushDB()
 	})
 
 	t.Run("Test distributed locking", func(t *testing.T) {
@@ -99,7 +99,7 @@ func Test(t *testing.T) {
 		t.Log("Acquiring it again...")
 		utils.AssertTrue(t, client.AcquireLockWithTimeout("testlock", 1, 1) != "")
 		t.Log("Got it!")
-		defer client.Conn.FlushAll()
+		defer client.Conn.FlushDB()
 	})
 
 	t.Run("Test counting semaphore", func(t *testing.T) {
@@ -125,7 +125,7 @@ func Test(t *testing.T) {
 			utils.AssertTrue(t, client.AcquireFairSemaphore("testsem", 3, 1) != "")
 		}
 		t.Log("We got them!")
-		defer client.Conn.FlushAll()
+		defer client.Conn.FlushDB()
 	})
 
 	t.Run("Test delayed tasks", func(t *testing.T) {
@@ -147,7 +147,7 @@ func Test(t *testing.T) {
 		r = client.Conn.LLen("queue:tqueue").Val()
 		t.Log("Waiting is over, how many tasks do we have (should be 4)?", r)
 		utils.AssertnumResult(t, 4, r)
-		defer client.Conn.FlushAll()
+		defer client.Conn.FlushDB()
 	})
 
 	t.Run("Test multi recipient messaging", func(t *testing.T) {
@@ -163,7 +163,7 @@ func Test(t *testing.T) {
 		t.Log("They are the same?", reflect.DeepEqual(r1, r2))
 		utils.AssertTrue(t, reflect.DeepEqual(r1, r2))
 		t.Log("Those messages are:", r1)
-		defer client.Conn.FlushAll()
+		defer client.Conn.FlushDB()
 	})
 	
 	t.Run("Test file distribution", func(t *testing.T) {
@@ -216,7 +216,7 @@ func Test(t *testing.T) {
 		t.Log("Done Cleaning out Redis!")
 
 		defer func() {
-			client.Conn.FlushAll()
+			client.Conn.FlushDB()
 			utils.CleanFile(tempFile1)
 			utils.CleanFile(tempFile2)
 			utils.CleanFile(outFile)

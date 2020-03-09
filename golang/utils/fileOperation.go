@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"archive/zip"
+	"compress/gzip"
 	"fmt"
 	"log"
 	"os"
@@ -10,18 +10,13 @@ import (
 )
 
 func GenerationZipFile(path, filename string) *os.File {
-	//outFile, err := os.Create("temp-3.zip")
 	outFile, err := os.Create(path +"/" + filename)
 	if err != nil {
 		log.Fatal(err)
 	}
-	zipWriter := zip.NewWriter(outFile)
-	fileWriter, err := zipWriter.Create("temp-3.txt")
-	if err != nil {
-		log.Fatal(err)
-	}
+	zipWriter := gzip.NewWriter(outFile)
 	for i := 0; i < 10000; i++ {
-		_, err = fileWriter.Write([]byte(strings.Repeat(
+		_, err = zipWriter.Write([]byte(strings.Repeat(
 			fmt.Sprintf("random line %s\n", strconv.Itoa(i)), 10)))
 		if err != nil {
 			log.Fatal(err)

@@ -30,7 +30,7 @@ func Test(t *testing.T) {
 			t.Log(v)
 		}
 		utils.AssertTrue(t, len(recent) >= 5)
-		defer client.Conn.FlushAll()
+		defer client.Conn.FlushDB()
 	})
 
 	t.Run("Test log common", func(t *testing.T) {
@@ -47,7 +47,7 @@ func Test(t *testing.T) {
 			t.Log(v)
 		}
 		utils.AssertTrue(t, len(commons) >= 5)
-		defer client.Conn.FlushAll()
+		defer client.Conn.FlushDB()
 	})
 
 	t.Run("Test counters", func(t *testing.T) {
@@ -80,7 +80,7 @@ func Test(t *testing.T) {
 		counter = client.GetCount("test", "86400")
 		t.Log("Did we clean out all of the counters?", len(counter))
 		utils.AssertTrue(t, len(counter) == 0)
-		defer client.Conn.FlushAll()
+		defer client.Conn.FlushDB()
 	})
 
 	t.Run("Test stats", func(t *testing.T) {
@@ -96,7 +96,7 @@ func Test(t *testing.T) {
 			t.Log(k, v)
 		}
 		utils.AssertTrue(t, rr["count"] >= 5)
-		defer client.Conn.FlushAll()
+		defer client.Conn.FlushDB()
 	})
 
 	t.Run("Test access time", func(t *testing.T) {
@@ -112,7 +112,7 @@ func Test(t *testing.T) {
 			t.Log(v.Member)
 		}
 		utils.AssertTrue(t, len(atimes) >= 10)
-		defer client.Conn.FlushAll()
+		defer client.Conn.FlushDB()
 	})
 
 	t.Run("Test ip lookup", func(t *testing.T) {
@@ -135,7 +135,7 @@ func Test(t *testing.T) {
 				utils.RandomString(256))
 			t.Log(ip, client.FindCityByIp(ip))
 		}
-		defer client.Conn.FlushAll()
+		defer client.Conn.FlushDB()
 	})
 
 	t.Run("Test is under maintenance", func(t *testing.T) {
@@ -148,7 +148,7 @@ func Test(t *testing.T) {
 		client.Conn.Del("is-under-maintenance")
 		time.Sleep(2 * time.Second)
 		t.Log("Should be False again:", client.IsUnderMaintenance())
-		defer client.Conn.FlushAll()
+		defer client.Conn.FlushDB()
 	})
 
 	t.Run("Test config", func(t *testing.T) {

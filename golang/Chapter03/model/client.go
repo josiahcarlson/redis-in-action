@@ -19,17 +19,7 @@ func NewClient(conn *redis.Client) *Client {
 	return &Client{Conn: conn}
 }
 func (r *Client) Reset() {
-	delKeys := []string{"key", "new-string-key", "another-key", "list-key", "list", "list2", "set-key", "set-key2",
-		"skey1", "skey2", "hash-key", "hash-key2", "zset-key", "zset-1", "zset-2", "zset-i", "zset-u", "zset-u2",
-		"set-1", "sort-input", "d-*", "notrans: ", "trans:", "key"}
-	var toDel []string
-	for _, v := range delKeys {
-		toDel = append(toDel, r.Conn.Keys(v).Val()...)
-	}
-
-	if len(toDel) != 0 {
-		r.Conn.Del(toDel...)
-	}
+	r.Conn.FlushDB()
 }
 
 func (r *Client) NotRans() {

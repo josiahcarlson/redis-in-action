@@ -22,7 +22,7 @@ func Test(t *testing.T) {
 		utils.AssertTrue(t, client.CreateStatus("1", "This is a new status message",
 			map[string]interface{}{}) == "1")
 		utils.AssertTrue(t, client.Conn.HGet("user:1", "posts").Val() == "1")
-		defer client.Conn.FlushAll()
+		defer client.Conn.FlushDB()
 	})
 
 	t.Run("Test follow and unfollow user", func(t *testing.T) {
@@ -49,7 +49,7 @@ func Test(t *testing.T) {
 		utils.AssertTrue(t, client.Conn.HGet("user:2", "following").Val() == "0")
 		utils.AssertTrue(t, client.Conn.HGet("user:1", "followers").Val() == "0")
 		utils.AssertTrue(t, client.Conn.HGet("user:2", "followers").Val() == "0")
-		defer client.Conn.FlushAll()
+		defer client.Conn.FlushDB()
 	})
 
 	t.Run("Test syndicate status", func(t *testing.T) {
@@ -78,7 +78,7 @@ func Test(t *testing.T) {
 		utils.AssertTrue(t, client.UnfollowUser("1", "2"))
 		utils.AssertnumResult(t, 0, int64(len(client.GetStatusMessage("1",
 			"home", 1, 30))))
-		client.Conn.FlushAll()
+		client.Conn.FlushDB()
 	})
 
 	t.Run("Test refill timeline", func(t *testing.T) {
@@ -115,6 +115,6 @@ func Test(t *testing.T) {
 		utils.AssertnumResult(t, 5, client.Conn.ZCard("home:1").Val())
 		client.CleanTimeLines("3", messages[len(messages)-1]["id"], 0, false)
 		utils.AssertnumResult(t, 4, client.Conn.ZCard("home:1").Val())
-		defer client.Conn.FlushAll()
+		defer client.Conn.FlushDB()
 	})
 }

@@ -28,7 +28,7 @@ func Test(t *testing.T) {
 		for _, v := range tokens {
 			utils.AssertTrue(t, reflect.DeepEqual(client.Conn.SMembers("idx:"+v).Val(), []string{"test"}))
 		}
-		defer client.Conn.FlushAll()
+		defer client.Conn.FlushDB()
 	})
 
 	t.Run("Test set operations", func(t *testing.T) {
@@ -48,7 +48,7 @@ func Test(t *testing.T) {
 
 		r = client.Difference([]string{"content", "indexed"}, 30)
 		utils.AssertTrue(t, reflect.DeepEqual(client.Conn.SMembers("idx:"+r).Val(), []string{}))
-		defer client.Conn.FlushAll()
+		defer client.Conn.FlushDB()
 	})
 
 	t.Run("Test parse query", func(t *testing.T) {
@@ -84,7 +84,7 @@ func Test(t *testing.T) {
 		utils.AssertTrue(t, reflect.DeepEqual(client.Conn.SMembers("idx:"+r).Val(), []string{}))
 
 		t.Log("Which passed!")
-		defer client.Conn.FlushAll()
+		defer client.Conn.FlushDB()
 	})
 
 	t.Run("Test search with sort", func(t *testing.T) {
@@ -101,7 +101,7 @@ func Test(t *testing.T) {
 		r, _ = client.SearchAndSort("content", "", 300, "-id", 0, 20)
 		utils.AssertTrue(t, reflect.DeepEqual(r, []string{"test", "test2"}))
 		t.Log("Which passed!")
-		client.Conn.FlushAll()
+		client.Conn.FlushDB()
 	})
 
 	t.Run("Test search with zsort", func(t *testing.T) {
@@ -122,7 +122,7 @@ func Test(t *testing.T) {
 			0, 20, false)
 		utils.AssertTrue(t, reflect.DeepEqual(r, []string{"test2", "test"}))
 		t.Log("Which passed!")
-		client.Conn.FlushAll()
+		client.Conn.FlushDB()
 	})
 
 	t.Run("Test string to score", func(t *testing.T) {
@@ -188,7 +188,7 @@ func Test(t *testing.T) {
 		}
 
 		utils.AssertTrue(t, reflect.DeepEqual(res, map[string]float64{"2": 0.125, "1": 0.25}))
-		defer client.Conn.FlushAll()
+		defer client.Conn.FlushDB()
 	})
 
 	t.Run("Test is qualified for job", func(t *testing.T) {
@@ -197,7 +197,7 @@ func Test(t *testing.T) {
 		utils.AssertTrue(t, len(res) == 0)
 		res = client.IsQualified("test", []string{"q1", "q2"})
 		utils.AssertFalse(t, len(res) == 0)
-		client.Conn.FlushAll()
+		client.Conn.FlushDB()
 	})
 
 	t.Run("Test index and find jobs", func(t *testing.T) {
@@ -210,7 +210,7 @@ func Test(t *testing.T) {
 		utils.AssertTrue(t, reflect.DeepEqual(client.FindJobs([]string{"q1", "q3", "q5"}), []string{"test3"}))
 		utils.AssertTrue(t, reflect.DeepEqual(client.FindJobs([]string{"q1", "q2", "q3", "q4", "q5"}),
 			[]string{"test1", "test2", "test3"}))
-		client.Conn.FlushAll()
+		client.Conn.FlushDB()
 	})
 
 	t.Run("Test index and find jobs levels", func(t *testing.T) {
@@ -232,7 +232,7 @@ func Test(t *testing.T) {
 		utils.AssertTrue(t,
 			reflect.DeepEqual(client.SearchJobLevels(map[string]int64{"q1": 1, "q2": 2}), []string{"job1", "job2"}))
 		t.Log("which passed")
-		client.Conn.FlushAll()
+		client.Conn.FlushDB()
 	})
 
 	t.Run("Test index and find jobs years", func(t *testing.T) {
@@ -254,6 +254,6 @@ func Test(t *testing.T) {
 		utils.AssertTrue(t,
 			reflect.DeepEqual(client.SearchJobYears(map[string]int64{"q1":1, "q2":2}), []string{"job1", "job2"}))
 		t.Log("which passed")
-		client.Conn.FlushAll()
+		client.Conn.FlushDB()
 	})
 }

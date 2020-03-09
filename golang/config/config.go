@@ -2,9 +2,10 @@ package config
 
 // config for redis
 var (
-	Addr     = "localhost:6379"
+	//Addr     = "localhost:6379"
+	Addr     = "192.168.1.6:6379"
 	Password = ""
-	DB       = 0
+	DB       = 15
 )
 
 // file path for Chapter05 

@@ -104,13 +104,5 @@ func (r *ArticleRepo) GetGroupArticles(group, order string, page int64) []map[st
 }
 
 func (r *ArticleRepo) Reset() {
-	delKeys := []string{"time:*", "voted:*", "score:*", "article:*", "group:*"}
-	var toDel []string
-	for _, v := range delKeys {
-		toDel = append(toDel, r.Conn.Keys(v).Val()...)
-	}
-
-	if len(toDel) != 0 {
-		r.Conn.Del(toDel...)
-	}
+	r.Conn.FlushDB()
 }
