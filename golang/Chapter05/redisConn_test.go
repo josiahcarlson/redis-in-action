@@ -115,6 +115,19 @@ func Test(t *testing.T) {
 		defer client.Conn.FlushDB()
 	})
 
+	t.Run("Test is under maintenance", func(t *testing.T) {
+		t.Log("Are we under maintenance (we shouldn't be)?", client.IsUnderMaintenance())
+		client.Conn.Set("is-under-maintenance", "yes", 0)
+		t.Log("We cached this, so it should be the same:", client.IsUnderMaintenance())
+		time.Sleep(2 * time.Second)
+		t.Log("But after a sleep, it should change:", client.IsUnderMaintenance())
+		t.Log("Cleaning up...")
+		client.Conn.Del("is-under-maintenance")
+		time.Sleep(2 * time.Second)
+		t.Log("Should be False again:", client.IsUnderMaintenance())
+		defer client.Conn.FlushDB()
+	})
+
 	t.Run("Test ip lookup", func(t *testing.T) {
 		t.Log("Importing IP addresses to Redis... (this may take a while)")
 		client.ImportIpsToRedis(config.FilePath + "GeoLite2-City-Blocks-IPv4.csv")
@@ -136,23 +149,5 @@ func Test(t *testing.T) {
 			t.Log(ip, client.FindCityByIp(ip))
 		}
 		defer client.Conn.FlushDB()
-	})
-
-	t.Run("Test is under maintenance", func(t *testing.T) {
-		t.Log("Are we under maintenance (we shouldn't be)?", client.IsUnderMaintenance())
-		client.Conn.Set("is-under-maintenance", "yes", 0)
-		t.Log("We cached this, so it should be the same:", client.IsUnderMaintenance())
-		time.Sleep(2 * time.Second)
-		t.Log("But after a sleep, it should change:", client.IsUnderMaintenance())
-		t.Log("Cleaning up...")
-		client.Conn.Del("is-under-maintenance")
-		time.Sleep(2 * time.Second)
-		t.Log("Should be False again:", client.IsUnderMaintenance())
-		defer client.Conn.FlushDB()
-	})
-
-	t.Run("Test config", func(t *testing.T) {
-		t.Log("Let's set a config and then get a connection from that config...")
-
 	})
 }
