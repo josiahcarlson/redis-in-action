@@ -28,7 +28,7 @@ func NewArticleRepo(conn *redis.Client) *ArticleRepo {
 
 func (r *ArticleRepo) ArticleVote(article, user string) {
 	cutoff := time.Now().Unix() - common.OneWeekInSeconds
-	if r.Conn.ZScore("time", article).Val() < float64(cutoff) {
+	if r.Conn.ZScore("time:", article).Val() < float64(cutoff) {
 		return
 	}
 
@@ -57,7 +57,7 @@ func (r *ArticleRepo) PostArticle(user, title, link string) string {
 	})
 
 	r.Conn.ZAdd("score:", &redis.Z{Score: float64(now + common.VoteScore), Member: article})
-	r.Conn.ZAdd("time", &redis.Z{Score: float64(now), Member: article})
+	r.Conn.ZAdd("time:", &redis.Z{Score: float64(now), Member: article})
 	return articleId
 }
 
