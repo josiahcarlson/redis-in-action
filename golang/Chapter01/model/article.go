@@ -98,8 +98,8 @@ func (r *ArticleRepo) GetGroupArticles(group, order string, page int64) []map[st
 		if res <= 0 {
 			log.Println("ZInterStore return 0")
 		}
+		r.Conn.Expire(key, 60*time.Second)
 	}
-	r.Conn.Expire(key, 60*time.Second)
 	return r.GetArticles(page, key)
 }
 
