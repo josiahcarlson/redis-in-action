@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/go-redis/redis/v7"
 	"io/ioutil"
 	"log"
 	"os"
@@ -19,6 +20,64 @@ import (
 func Test(t *testing.T) {
 	conn := redisConn.ConnectRedis()
 	client := model.NewClient(conn)
+
+	t.Run("Tx pipeline outside watch clourse", func(t *testing.T) {
+		// not work
+		pipe := client.Conn.TxPipeline()
+		err := client.Conn.Watch(func(tx *redis.Tx) error {
+			fmt.Println("before start tx", client.Conn.Incr("key"))
+
+			fmt.Println("inside tx", pipe.Incr("key"))
+			if cmd, err := pipe.Exec(); err != nil {
+				return err
+			} else {
+				t.Log(cmd)
+			}
+
+			return nil
+		}, "key")
+		utils.AssertTrue(t, err != nil)
+		t.Log(err)
+
+		fmt.Println("after tx", client.Conn.Get("key"))
+
+		defer client.Conn.FlushDB()
+	})
+
+	t.Run("Tx pipeline useage 1", func(t *testing.T) {
+		err := client.Conn.Watch(func(tx *redis.Tx) error {
+			fmt.Println("before start tx", client.Conn.Incr("key"))
+
+			pipe := tx.TxPipeline()
+			fmt.Println("inside tx", pipe.Incr("key"))
+			if _, err := pipe.Exec(); err != nil {
+				return err
+			}
+			return nil
+		}, "key")
+		utils.AssertTrue(t, err != nil)
+		t.Log(err)
+
+		defer client.Conn.FlushDB()
+	})
+
+	t.Run("Tx pipeline usage 2", func(t *testing.T) {
+		err := client.Conn.Watch(func(tx *redis.Tx) error {
+			fmt.Println("before start tx", client.Conn.Incr("key"))
+			_, err := tx.Pipelined(func(pipe redis.Pipeliner) error {
+				fmt.Println("inside tx", pipe.Incr("key"))
+				return nil
+			})
+
+			return err
+
+		}, "key")
+
+		utils.AssertTrue(t, err != nil)
+		t.Log(err)
+
+		defer client.Conn.FlushDB()
+	})
 
 	t.Run("Test add update contact", func(t *testing.T) {
 		t.Log("Let's add a few contacts...")
@@ -77,6 +136,63 @@ func Test(t *testing.T) {
 		t.Log("now let's try to find users with names starting with 'je':")
 		r := client.AutoCompleteOnPrefix("test", "je")
 		t.Log(r)
+		defer client.Conn.FlushDB()
+	})
+
+	t.Run("Test list item", func(t *testing.T) {
+		t.Log("We need to set up just enough state so that a user can list an item")
+		seller := "seller"
+		item := "itemX"
+		client.Conn.SAdd("inventory:"+seller, item)
+		i := client.Conn.SMembers("inventory:" + seller).Val()
+		t.Log("The user's inventory has:", i)
+		utils.AssertTrue(t, len(i) > 0)
+
+		t.Log("Listing the item...")
+		l := client.ListItem(item, seller, 10)
+		t.Log("Listing the item succeeded?", l)
+		utils.AssertTrue(t, l)
+		r := client.Conn.ZRangeWithScores("market:", 0, -1).Val()
+		t.Log("The market contains:", r)
+		t.Log("The inventory: ", client.Conn.Get("inventory:"+seller).Val())
+		defer client.Conn.FlushDB()
+	})
+
+	t.Run("Test purchase item with lock", func(t *testing.T) {
+		seller := "seller"
+		item := "itemX"
+		client.Conn.SAdd("inventory:"+seller, item)
+		client.ListItem(item, seller, 10)
+		t.Log("We need to set up just enough state so a user can buy an item")
+
+		buyer := "buyer"
+		client.Conn.HSet("users:buyer", "funds", 125)
+		r := client.Conn.HGetAll("users:buyer").Val()
+		t.Log("The user has some money:", r)
+		utils.AssertTrue(t, len(r) != 0)
+
+		p := client.PurchaseItemWithLock(buyer, item, seller)
+		t.Log("Purchasing an item succeeded?", p)
+		utils.AssertTrue(t, p)
+
+		r = client.Conn.HGetAll("users:buyer").Val()
+		t.Log("buyer's money is now:", r)
+		funds, ok := r["funds"]
+		utils.AssertTrue(t, ok)
+		money, _ := strconv.Atoi(funds)
+		utils.AssertTrue(t, money == 125-10)
+
+		r = client.Conn.HGetAll("users:seller").Val()
+		t.Log("seller's money is now:", r)
+		funds, ok = r["funds"]
+		utils.AssertTrue(t, ok)
+		money, _ = strconv.Atoi(funds)
+		utils.AssertTrue(t, money == 10)
+
+		i := client.Conn.SMembers("inventory:" + buyer).Val()
+		t.Log("Their inventory is now:", i)
+		utils.AssertTrue(t, len(i) > 0)
+		utils.AssertTrue(t, client.Conn.ZScore("market:", "itemX.seller").Val() == 0)
 		defer client.Conn.FlushDB()
 	})
 
@@ -165,7 +281,7 @@ func Test(t *testing.T) {
 		t.Log("Those messages are:", r1)
 		defer client.Conn.FlushDB()
 	})
-	
+
 	t.Run("Test file distribution", func(t *testing.T) {
 		tempDirPath, err := ioutil.TempDir("", "myTempDir")
 		if err != nil {
@@ -189,7 +305,7 @@ func Test(t *testing.T) {
 		for _, v := range sizes {
 			sum += v
 		}
-		go client.CopyLogsToRedis(tempDirPath, "test:", 1, sum + 1, true)
+		go client.CopyLogsToRedis(tempDirPath, "test:", 1, sum+1, true)
 
 		t.Log("Let's pause to let some logs get copied to Redis...")
 		time.Sleep(250 * time.Millisecond)
@@ -224,4 +340,3 @@ func Test(t *testing.T) {
 		}()
 	})
 }
-
