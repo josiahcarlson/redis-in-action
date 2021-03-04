@@ -14,6 +14,14 @@ const (
 	REDIS_MIN_VERSION = "4.0.0"
 )
 
+type Client struct {
+	Conn *redis.Client
+}
+
+func NewClient(conn *redis.Client) *Client {
+	return &Client{Conn: conn}
+}
+
 func ConnectRedis() *redis.Client {
 	conn := redis.NewClient(&redis.Options{
 		Addr:     config.Addr,

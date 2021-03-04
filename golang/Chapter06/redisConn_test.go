@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/go-redis/redis/v7"
 	"io/ioutil"
 	"log"
 	"os"
@@ -20,64 +19,6 @@ import (
 func Test(t *testing.T) {
 	conn := redisConn.ConnectRedis()
 	client := model.NewClient(conn)
-
-	t.Run("Tx pipeline outside watch clourse", func(t *testing.T) {
-		// not work
-		pipe := client.Conn.TxPipeline()
-		err := client.Conn.Watch(func(tx *redis.Tx) error {
-			fmt.Println("before start tx", client.Conn.Incr("key"))
-
-			fmt.Println("inside tx", pipe.Incr("key"))
-			if cmd, err := pipe.Exec(); err != nil {
-				return err
-			} else {
-				t.Log(cmd)
-			}
-
-			return nil
-		}, "key")
-		utils.AssertTrue(t, err != nil)
-		t.Log(err)
-
-		fmt.Println("after tx", client.Conn.Get("key"))
-
-		defer client.Conn.FlushDB()
-	})
-
-	t.Run("Tx pipeline useage 1", func(t *testing.T) {
-		err := client.Conn.Watch(func(tx *redis.Tx) error {
-			fmt.Println("before start tx", client.Conn.Incr("key"))
-
-			pipe := tx.TxPipeline()
-			fmt.Println("inside tx", pipe.Incr("key"))
-			if _, err := pipe.Exec(); err != nil {
-				return err
-			}
-			return nil
-		}, "key")
-		utils.AssertTrue(t, err != nil)
-		t.Log(err)
-
-		defer client.Conn.FlushDB()
-	})
-
-	t.Run("Tx pipeline usage 2", func(t *testing.T) {
-		err := client.Conn.Watch(func(tx *redis.Tx) error {
-			fmt.Println("before start tx", client.Conn.Incr("key"))
-			_, err := tx.Pipelined(func(pipe redis.Pipeliner) error {
-				fmt.Println("inside tx", pipe.Incr("key"))
-				return nil
-			})
-
-			return err
-
-		}, "key")
-
-		utils.AssertTrue(t, err != nil)
-		t.Log(err)
-
-		defer client.Conn.FlushDB()
-	})
 
 	t.Run("Test add update contact", func(t *testing.T) {
 		t.Log("Let's add a few contacts...")
