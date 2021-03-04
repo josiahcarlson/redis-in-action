@@ -62,7 +62,7 @@ func AssertFalse(t *testing.T, v bool) {
 func AssertTrue(t *testing.T, v bool) {
 	t.Helper()
 	if v != true {
-		t.Error("assert false but get a true value")
+		t.Error("assert true but get a false value")
 	}
 }
 
