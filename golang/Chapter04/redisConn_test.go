@@ -4,6 +4,7 @@ import (
 	"redisInAction/Chapter04/model"
 	"redisInAction/redisConn"
 	"redisInAction/utils"
+	"strconv"
 	"testing"
 )
 
@@ -30,7 +31,10 @@ func Test(t *testing.T) {
 	})
 
 	t.Run("Test purchase item", func(t *testing.T) {
-		client.ListItem("itemX", "userX", 10)
+		seller := "userX"
+		item := "itemX"
+		client.Conn.SAdd("inventory:"+seller, item)
+		client.ListItem(item, seller, 10)
 		t.Log("We need to set up just enough state so a user can buy an item")
 		buyer := "userY"
 		client.Conn.HSet("users:userY", "funds", 125)
@@ -42,8 +46,19 @@ func Test(t *testing.T) {
 		t.Log("Purchasing an item succeeded?", p)
 		utils.AssertTrue(t, p)
 		r = client.Conn.HGetAll("users:userY").Val()
-		t.Log("Their money is now:", r)
-		utils.AssertTrue(t, len(r) > 0)
+		t.Log("UserY money is now:", r)
+		funds, ok := r["funds"]
+		utils.AssertTrue(t, ok)
+		money, _ := strconv.Atoi(funds)
+		utils.AssertTrue(t, money == 125-10)
+
+		r = client.Conn.HGetAll("users:userX").Val()
+		t.Log("UserX money is now:", r)
+		funds, ok = r["funds"]
+		utils.AssertTrue(t, ok)
+		money, _ = strconv.Atoi(funds)
+		utils.AssertTrue(t, money == 10)
+
 		i := client.Conn.SMembers("inventory:" + buyer).Val()
 		t.Log("Their inventory is now:", i)
 		utils.AssertTrue(t, len(i) > 0)

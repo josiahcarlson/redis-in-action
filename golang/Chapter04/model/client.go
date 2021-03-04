@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"fmt"
 	"github.com/go-redis/redis/v7"
 	"log"
@@ -24,8 +25,7 @@ func (c *Client) ListItem(itemid, sellerid string, price float64) bool {
 		err := c.Conn.Watch(func(tx *redis.Tx) error {
 			if _, err := tx.TxPipelined(func(pipeliner redis.Pipeliner) error {
 				if !tx.SIsMember(inventory, itemid).Val() {
-					tx.Unwatch(inventory)
-					return nil
+					return errors.New("item doesn't belong to user")
 				}
 				pipeliner.ZAdd("market:", &redis.Z{Member: item, Score: price})
 				pipeliner.SRem(inventory, itemid)
@@ -55,10 +55,10 @@ func (c *Client) PurchaseItem(buyerid, itemid, sellerid string, lprice int64) bo
 	for time.Now().Unix() < end {
 		err := c.Conn.Watch(func(tx *redis.Tx) error {
 			if _, err := tx.TxPipelined(func(pipeliner redis.Pipeliner) error {
-				price := int64(pipeliner.ZScore("market:", item).Val())
+				price := int64(tx.ZScore("market:", item).Val())
 				funds, _ := tx.HGet(buyer, "funds").Int64()
 				if price != lprice || price > funds {
-					tx.Unwatch()
+					return errors.New("can not afford this item")
 				}
 
 				pipeliner.HIncrBy(seller, "funds", price)
@@ -83,22 +83,22 @@ func (c *Client) PurchaseItem(buyerid, itemid, sellerid string, lprice int64) bo
 func (c *Client) UpdateToken(token, user, item string) {
 	timestamp := float64(time.Now().UnixNano())
 	c.Conn.HSet("login:", token, user)
-	c.Conn.ZAdd("recent:", &redis.Z{Member:token, Score:timestamp})
+	c.Conn.ZAdd("recent:", &redis.Z{Member: token, Score: timestamp})
 	if item != "" {
-		c.Conn.ZAdd("viewed:" + token, &redis.Z{Member:item, Score:timestamp})
-		c.Conn.ZRemRangeByRank("viewed:" + token, 0, -26)
+		c.Conn.ZAdd("viewed:"+token, &redis.Z{Member: item, Score: timestamp})
+		c.Conn.ZRemRangeByRank("viewed:"+token, 0, -26)
 		c.Conn.ZIncrBy("viewed:", -1, item)
 	}
 }
 
-func (c *Client) UpdateTokenPipeline (token, user, item string) {
+func (c *Client) UpdateTokenPipeline(token, user, item string) {
 	timestamp := float64(time.Now().UnixNano())
 	pipe := c.Conn.Pipeline()
 	pipe.HSet("login:", token, user)
-	pipe.ZAdd("recent:", &redis.Z{Member:token, Score:timestamp})
+	pipe.ZAdd("recent:", &redis.Z{Member: token, Score: timestamp})
 	if item != "" {
-		pipe.ZAdd("viewed:" + token, &redis.Z{Member:item, Score:timestamp})
-		pipe.ZRemRangeByRank("viewed:" + token, 0, -26)
+		pipe.ZAdd("viewed:"+token, &redis.Z{Member: item, Score: timestamp})
+		pipe.ZRemRangeByRank("viewed:"+token, 0, -26)
 		pipe.ZIncrBy("viewed:", -1, item)
 	}
 	if _, err := pipe.Exec(); err != nil {
@@ -109,4 +109,3 @@ func (c *Client) UpdateTokenPipeline (token, user, item string) {
 }
 
 //TODO: lack the parts before 4.4
-
