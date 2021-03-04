@@ -510,7 +510,7 @@ func (c *Client) SendMessage(chatId, sender, message string) string {
 }
 
 func (c *Client) FetchPendingMessage(recipient string) []Messages {
-	seen := c.Conn.ZRangeWithScores("seen:"+recipient, 0, -1).Val()
+	seen := c.Conn.ZRangeWithScores("seen:" + recipient, 0, -1).Val()
 	pipeline := c.Conn.TxPipeline()
 
 	res := &redis.StringSliceCmd{}
@@ -519,7 +519,7 @@ func (c *Client) FetchPendingMessage(recipient string) []Messages {
 	for _, v := range seen {
 		chatId := v.Member.(string)
 		seenId := v.Score
-		res = pipeline.ZRangeByScore("msgs:"+chatId, &redis.ZRangeBy{Min: strconv.Itoa(int(seenId + 1)), Max: "inf"})
+		res = pipeline.ZRangeByScore("msgs:" + chatId, &redis.ZRangeBy{Min:strconv.Itoa(int(seenId + 1)), Max:"inf"})
 		temp = append(temp, chatId, strconv.Itoa(int(seenId)))
 	}
 
@@ -528,10 +528,10 @@ func (c *Client) FetchPendingMessage(recipient string) []Messages {
 		return nil
 	}
 	chatInfo := [][]string{temp, res.Val()}
-	result := make([]Messages, len(chatInfo)/2)
+	result := make([]Messages, len(chatInfo) / 2)
 
 	for i := 0; i < len(chatInfo); i += 2 {
-		if len(chatInfo[i+1]) == 0 {
+		if len(chatInfo[i + 1]) == 0 {
 			continue
 		}
 
@@ -545,16 +545,16 @@ func (c *Client) FetchPendingMessage(recipient string) []Messages {
 		}
 
 		chatId := chatInfo[i][0]
-		seenId := float64(messages[len(messages)-1].Id)
-		c.Conn.ZAdd("chat:"+chatId, &redis.Z{Member: recipient, Score: seenId})
+		seenId := float64(messages[len(messages) - 1].Id)
+		c.Conn.ZAdd("chat:" + chatId, &redis.Z{Member:recipient, Score: seenId})
 
-		minId := c.Conn.ZRangeWithScores("chat:"+chatId, 0, 0).Val()
+		minId := c.Conn.ZRangeWithScores("chat:" + chatId, 0, 0).Val()
 
-		pipeline.ZAdd("seen:"+recipient, &redis.Z{Member: chatId, Score: seenId})
+		pipeline.ZAdd("seen:" + recipient, &redis.Z{Member:chatId, Score:seenId})
 		if minId != nil {
-			pipeline.ZRemRangeByScore("msgs:"+chatId, "0", strconv.Itoa(int(minId[0].Score)))
+			pipeline.ZRemRangeByScore("msgs:" + chatId, "0", strconv.Itoa(int(minId[0].Score)))
 		}
-		result[i] = Messages{ChatId: chatId, ChatMessages: messages}
+		result[i] = Messages{ChatId:chatId, ChatMessages:messages}
 	}
 
 	return result
@@ -564,8 +564,8 @@ func (c *Client) JoinChat(chatId, user string) {
 	messageId, _ := c.Conn.Get("ids" + chatId).Float64()
 
 	pipeline := c.Conn.TxPipeline()
-	pipeline.ZAdd("chat:"+chatId, &redis.Z{Member: user, Score: messageId})
-	pipeline.ZAdd("seen:"+user, &redis.Z{Member: chatId, Score: messageId})
+	pipeline.ZAdd("chat:" + chatId, &redis.Z{Member:user, Score:messageId})
+	pipeline.ZAdd("seen:" + user, &redis.Z{Member:chatId, Score:messageId})
 	if _, err := pipeline.Exec(); err != nil {
 		log.Println("pipeline err in JoinChat: ", err)
 	}
@@ -574,8 +574,8 @@ func (c *Client) JoinChat(chatId, user string) {
 func (c *Client) LeaveChat(chatId, user string) {
 	res := &redis.IntCmd{}
 	pipeline := c.Conn.TxPipeline()
-	pipeline.ZRem("chat:"+chatId, user)
-	pipeline.ZRem("seen:"+user, chatId)
+	pipeline.ZRem("chat:" + chatId, user)
+	pipeline.ZRem("seen:" + user, chatId)
 	res = pipeline.ZCard("chat:" + chatId)
 	if _, err := pipeline.Exec(); err != nil {
 		log.Println("pipeline err in LeaveChat: ", err)
@@ -588,8 +588,8 @@ func (c *Client) LeaveChat(chatId, user string) {
 			log.Println("pipeline err in LeaveChat: ", err)
 		}
 	} else {
-		oldest := c.Conn.ZRangeWithScores("chat:"+chatId, 0, 0).Val()[0]
-		c.Conn.ZRemRangeByScore("msgs:"+chatId, "0", strconv.Itoa(int(oldest.Score)))
+		oldest := c.Conn.ZRangeWithScores("chat:" + chatId, 0, 0).Val()[0]
+		c.Conn.ZRemRangeByScore("msgs:" + chatId, "0", strconv.Itoa(int(oldest.Score)))
 	}
 }
 
@@ -614,7 +614,7 @@ func (c *Client) CopyLogsToRedis(path, channel string, count int, limit int64, q
 
 		finfo, _ := os.Stat(fullPath)
 		fsize := finfo.Size()
-		for bytesInRedis+fsize > limit {
+		for bytesInRedis + fsize > limit {
 			cleaned := c.clean(channel, &waiting, count)
 			if cleaned != 0 {
 				bytesInRedis -= cleaned
@@ -636,7 +636,7 @@ func (c *Client) CopyLogsToRedis(path, channel string, count int, limit int64, q
 			if temp == 0 {
 				break
 			}
-			c.Conn.Append(channel+logfile.Name(), string(byteSlice))
+			c.Conn.Append(channel + logfile.Name(), string(byteSlice))
 		}
 		c.SendMessage(channel, "source", logfile.Name())
 
@@ -670,7 +670,7 @@ func (c *Client) clean(channel string, waiting *[]os.FileInfo, count int) int64 
 		return 0
 	}
 	if res >= count {
-		c.Conn.Del(channel+w0, channel+w0+":done")
+		c.Conn.Del(channel + w0, channel + w0 + ":done")
 		left := (*waiting)[0]
 		*waiting = (*waiting)[1:]
 		return left.Size()
@@ -698,7 +698,7 @@ func (c *Client) ProcessLogsFromRedis(id int, callback func(string)) {
 					blockReader = c.readBlocksGz
 				}
 
-				for line := range c.readLines(ch+logfile, blockReader) {
+				for line := range c.readLines(ch + logfile, blockReader) {
 					if line == "" {
 						break
 					}
@@ -706,7 +706,7 @@ func (c *Client) ProcessLogsFromRedis(id int, callback func(string)) {
 				}
 				callback("")
 
-				c.Conn.Incr(ch + logfile + ":done")
+				c.Conn.Incr(ch+logfile + ":done")
 			}
 		}
 
@@ -716,7 +716,7 @@ func (c *Client) ProcessLogsFromRedis(id int, callback func(string)) {
 	}
 }
 
-func (c *Client) readLines(key string, rblocks func(string) <-chan string) <-chan string {
+func (c *Client) readLines(key string, rblocks func(string) <- chan string) <- chan string {
 	res := make(chan string)
 	go func() {
 		var out string
@@ -727,7 +727,7 @@ func (c *Client) readLines(key string, rblocks func(string) <-chan string) <-cha
 				for _, line := range strings.Split(out[:posn], "\n") {
 					res <- line + "\n"
 				}
-				out = out[posn+1:]
+				out = out[posn + 1:]
 			}
 		}
 		res <- out
@@ -736,14 +736,14 @@ func (c *Client) readLines(key string, rblocks func(string) <-chan string) <-cha
 	return res
 }
 
-func (c *Client) readBlocks(key string) <-chan string {
+func (c *Client) readBlocks(key string) <- chan string {
 	blocksize := int64(math.Pow(2, 17))
 	res := make(chan string)
 	go func() {
 		var lb = blocksize
 		var pos int64 = 0
 		for lb == blocksize {
-			block := c.Conn.GetRange(key, pos, pos+blocksize-1).Val()
+			block := c.Conn.GetRange(key, pos, pos + blocksize - 1).Val()
 			res <- block
 			lb = int64(len(block))
 			pos += lb
@@ -754,7 +754,7 @@ func (c *Client) readBlocks(key string) <-chan string {
 	return res
 }
 
-func (c *Client) readBlocksGz(key string) <-chan string {
+func (c *Client) readBlocksGz(key string) <- chan string {
 	res := make(chan string)
 	go func() {
 		for temp := range c.readBlocks(key) {

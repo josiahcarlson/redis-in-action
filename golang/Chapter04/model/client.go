@@ -83,22 +83,22 @@ func (c *Client) PurchaseItem(buyerid, itemid, sellerid string, lprice int64) bo
 func (c *Client) UpdateToken(token, user, item string) {
 	timestamp := float64(time.Now().UnixNano())
 	c.Conn.HSet("login:", token, user)
-	c.Conn.ZAdd("recent:", &redis.Z{Member: token, Score: timestamp})
+	c.Conn.ZAdd("recent:", &redis.Z{Member:token, Score:timestamp})
 	if item != "" {
-		c.Conn.ZAdd("viewed:"+token, &redis.Z{Member: item, Score: timestamp})
-		c.Conn.ZRemRangeByRank("viewed:"+token, 0, -26)
+		c.Conn.ZAdd("viewed:" + token, &redis.Z{Member:item, Score:timestamp})
+		c.Conn.ZRemRangeByRank("viewed:" + token, 0, -26)
 		c.Conn.ZIncrBy("viewed:", -1, item)
 	}
 }
 
-func (c *Client) UpdateTokenPipeline(token, user, item string) {
+func (c *Client) UpdateTokenPipeline (token, user, item string) {
 	timestamp := float64(time.Now().UnixNano())
 	pipe := c.Conn.Pipeline()
 	pipe.HSet("login:", token, user)
-	pipe.ZAdd("recent:", &redis.Z{Member: token, Score: timestamp})
+	pipe.ZAdd("recent:", &redis.Z{Member:token, Score:timestamp})
 	if item != "" {
-		pipe.ZAdd("viewed:"+token, &redis.Z{Member: item, Score: timestamp})
-		pipe.ZRemRangeByRank("viewed:"+token, 0, -26)
+		pipe.ZAdd("viewed:" + token, &redis.Z{Member:item, Score:timestamp})
+		pipe.ZRemRangeByRank("viewed:" + token, 0, -26)
 		pipe.ZIncrBy("viewed:", -1, item)
 	}
 	if _, err := pipe.Exec(); err != nil {

@@ -305,7 +305,7 @@ func Test(t *testing.T) {
 		for _, v := range sizes {
 			sum += v
 		}
-		go client.CopyLogsToRedis(tempDirPath, "test:", 1, sum+1, true)
+		go client.CopyLogsToRedis(tempDirPath, "test:", 1, sum + 1, true)
 
 		t.Log("Let's pause to let some logs get copied to Redis...")
 		time.Sleep(250 * time.Millisecond)
