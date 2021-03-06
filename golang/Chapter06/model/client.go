@@ -561,7 +561,7 @@ func (c *Client) FetchPendingMessage(recipient string) []Messages {
 }
 
 func (c *Client) JoinChat(chatId, user string) {
-	messageId, _ := c.Conn.Get("ids" + chatId).Float64()
+	messageId, _ := c.Conn.Get("ids:" + chatId).Float64()
 
 	pipeline := c.Conn.TxPipeline()
 	pipeline.ZAdd("chat:" + chatId, &redis.Z{Member:user, Score:messageId})
@@ -664,7 +664,7 @@ func (c *Client) clean(channel string, waiting *[]os.FileInfo, count int) int64 
 	}
 
 	w0 := (*waiting)[0].Name()
-	res, err := c.Conn.Get(channel + w0 + ":donw").Int()
+	res, err := c.Conn.Get(channel + w0 + ":done").Int()
 	if err != nil {
 		//log.Println("Conn.Get err in clean: ", err)
 		return 0
