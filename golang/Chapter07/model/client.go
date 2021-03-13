@@ -30,7 +30,7 @@ func Tokenize(content string) []string {
 		}
 		words.Add(match)
 	}
-	return words.Intersection(&common.STOPWORDS)
+	return words.Diff(&common.STOPWORDS)
 }
 
 func (c *Client) IndexDocument(docid, content string) int64 {

@@ -4,7 +4,7 @@ import "sort"
 
 type Set map[string]struct{}
 
-func (s *Set) Intersection(items *[]string) []string {
+func (s *Set) Diff(items *[]string) []string {
 	res := make([]string, 0, len(*s))
 	keys := s.Getkeys()
 	sort.Slice(*items, func(i, j int) bool {
