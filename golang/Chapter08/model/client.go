@@ -385,27 +385,27 @@ func (c *Client) AcquireLockWithTimeout(lockname string, acquireTimeout, lockTim
 
 func (c *Client) ReleaseLock(lockname, identifier string) bool {
 	lockname = "lock:" + lockname
-	var flag = true
-	for flag {
+	lostLock := false
+	for {
 		err := c.Conn.Watch(func(tx *redis.Tx) error {
-			pipe := tx.TxPipeline()
 			if tx.Get(lockname).Val() == identifier {
+				pipe := tx.TxPipeline()
 				pipe.Del(lockname)
-				if _, err := pipe.Exec(); err != nil {
-					return err
-				}
-				flag = true
-				return nil
+				_, err := pipe.Exec()
+				return err
 			}
-
-			tx.Unwatch()
-			flag = false
+			// lock was grabbed by others
+			lostLock = true
 			return nil
-		})
+		}, lockname)
 
 		if err != nil {
 			log.Println("watch failed in ReleaseLock, err is: ", err)
-			return false
+			continue
+		}
+
+		if lostLock {
+			return true
 		}
 	}
 	return true
