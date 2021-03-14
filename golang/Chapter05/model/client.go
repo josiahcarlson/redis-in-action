@@ -154,8 +154,6 @@ func (c *Client) CleanCounters() {
 								return err
 							}
 							index--
-						} else {
-							tx.Unwatch()
 						}
 						return nil
 					}, hkey)
