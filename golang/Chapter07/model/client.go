@@ -25,6 +25,7 @@ func NewClient(conn *redis.Client) *Client {
 func Tokenize(content string) []string {
 	words := utils.Set{}
 	for _, match := range common.WORDSRE.FindAllString(strings.ToLower(content), -1) {
+		// 至少兩個字符長度的單字
 		if len(match) < 2 {
 			continue
 		}

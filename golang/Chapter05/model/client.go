@@ -350,7 +350,7 @@ func (c *Client) ImportCityToRedis(filename string) {
 
 func (c *Client) FindCityByIp(ip string) string {
 	ipAddress := strconv.Itoa(int(c.IpToScore(ip)))
-	res := c.Conn.ZRevRangeByScore("ip2cityid:", &redis.ZRangeBy{Max: ipAddress, Min: "0", Offset: 0, Count: 2}).Val()
+	res := c.Conn.ZRangeByScore("ip2cityid:", &redis.ZRangeBy{Max: ipAddress, Min: "0", Offset: 0, Count: 2}).Val()
 	if len(res) == 0 {
 		return ""
 	}
