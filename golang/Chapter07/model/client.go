@@ -2,8 +2,6 @@ package model
 
 import (
 	"fmt"
-	"github.com/go-redis/redis/v7"
-	uuid "github.com/satori/go.uuid"
 	"log"
 	"redisInAction/Chapter07/common"
 	"redisInAction/utils"
@@ -12,6 +10,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/go-redis/redis/v7"
+	uuid "github.com/satori/go.uuid"
 )
 
 type Client struct {
@@ -34,10 +35,13 @@ func Tokenize(content string) []string {
 	return words.Intersection(&common.STOPWORDS)
 }
 
+// IndexDocument : Listing 7.1 Functions to tokenize and index a document
+// 建立set("idx:"+word)然後將 docid 放入此 set
 func (c *Client) IndexDocument(docid, content string) int64 {
 	words := Tokenize(content)
 
 	pipeline := c.Conn.TxPipeline()
+	// 建立單字的set, 裡面記錄有哪幾個文件出現過
 	for _, word := range words {
 		pipeline.SAdd("idx:"+word, docid)
 	}
@@ -49,7 +53,10 @@ func (c *Client) IndexDocument(docid, content string) int64 {
 	return int64(len(res))
 }
 
+// setCommon : 對集合做交集, 連集, 差集運算 (SInterStore, SUnionStore, SDiffStore)
+// 回傳運算結果的set id
 func (c *Client) setCommon(method string, names *[]string, ttl int) string {
+	// 建立臨時的 id, 給臨時的set使用
 	id := uuid.NewV4().String()
 	pipeline := c.Conn.TxPipeline()
 
@@ -58,8 +65,12 @@ func (c *Client) setCommon(method string, names *[]string, ttl int) string {
 	for _, name := range *names {
 		namelist = append(namelist, reflect.ValueOf("idx:"+name))
 	}
+
+	// SInterStore(destination, key…)：將兩個表交集/並集/補集元素copy到第三個, ex: client.SInterStore("sdemo2", key, key1).Val()
 	methodValue := reflect.ValueOf(pipeline).MethodByName(method)
 	methodValue.Call(namelist)
+
+	// 告訴 redis 時間到自動刪除此集合
 	pipeline.Expire("idx:"+id, time.Duration(ttl)*time.Second)
 	if _, err := pipeline.Exec(); err != nil {
 		log.Println("pipeline err in setCommon: ", err)
@@ -80,8 +91,11 @@ func (c *Client) Difference(items []string, ttl int) string {
 	return c.setCommon("SDiffStore", &items, ttl)
 }
 
+// Parse : Listing 7.3 A function for parsing a search query
+// query :="test +query without -stopwords" => all: [][]string{{"test", "query"}, {"without"}}, unwantedlist : []string{"stopwords"}
 func Parse(query string) (all [][]string, unwantedlist []string) {
 	unwanted, current := utils.Set{}, utils.Set{}
+	// 將所有單字找出
 	for _, word := range common.QUERYRE.FindAllString(strings.ToLower(query), -1) {
 		prefix := word[0]
 		if prefix == '+' || prefix == '-' {
@@ -94,6 +108,7 @@ func Parse(query string) (all [][]string, unwantedlist []string) {
 		case len(word) < 2 || common.STOPWORDS[sort.SearchStrings(common.STOPWORDS, word)] == word:
 			continue
 		case prefix == '-':
+			// 不需要的單詞, 添加到不需要單詞的set裡
 			unwanted.Add(word)
 			continue
 		case len(current) != 0 && prefix == 0:
@@ -104,6 +119,7 @@ func Parse(query string) (all [][]string, unwantedlist []string) {
 		current.Add(word)
 	}
 
+	// 把剩餘的單詞都放在
 	if len(current) != 0 {
 		all = append(all, current.Getkeys())
 	}
@@ -112,6 +128,7 @@ func Parse(query string) (all [][]string, unwantedlist []string) {
 	return
 }
 
+// ParseAndSearch : Listing 7.4 A function to parse a query and search documents
 func (c *Client) ParseAndSearch(query string, ttl int) string {
 	all, unwanted := Parse(query)
 
@@ -121,9 +138,12 @@ func (c *Client) ParseAndSearch(query string, ttl int) string {
 
 	toIntersect := []string{}
 	for _, syn := range all {
+		// 找尋各個同義詞的arrray
 		if len(syn) > 1 {
+			// 如果同義詞包的單字超過一個, 執行聯集運算
 			toIntersect = append(toIntersect, c.Union(syn, ttl))
 		} else {
+			// 如果同義詞包的單字只有一個, 直接使用此單字
 			toIntersect = append(toIntersect, syn[0])
 		}
 	}
@@ -297,7 +317,7 @@ func (c *Client) IndexAd(id string, locations []string, content, types string, v
 	pipeline.ZAdd("ad:baseValue:", &redis.Z{Member: id, Score: value})
 	//pipeline.SAdd("terms:"+id, words) FLAG
 	for _, word := range words {
-		pipeline.SAdd("terms:" + id, word)
+		pipeline.SAdd("terms:"+id, word)
 	}
 	if _, err := pipeline.Exec(); err != nil {
 		log.Println("pipeline err in IdexAd: ", err)
@@ -436,7 +456,7 @@ func (c *Client) UpdateCpms(adId string) {
 	pipeline.Get(fmt.Sprintf("type:%s:views:", types))
 	pipeline.Get(fmt.Sprintf("type:%s:%s:", types, which))
 	res, err = pipeline.Exec()
-	if err != nil && err != redis.Nil{
+	if err != nil && err != redis.Nil {
 		log.Println("pipeline err in UpdateCpms: ", err)
 	}
 	typeViews, _ := res[0].(*redis.StringCmd).Int()
@@ -449,7 +469,7 @@ func (c *Client) UpdateCpms(adId string) {
 	if typeClicks == 0 {
 		typeClicks = 1
 	}
-	common.AVERAGEPER1K[types] = float64(1000 * typeClicks) / float64(typeViews)
+	common.AVERAGEPER1K[types] = float64(1000*typeClicks) / float64(typeViews)
 
 	if types == "cpm" {
 		return
@@ -461,7 +481,7 @@ func (c *Client) UpdateCpms(adId string) {
 	pipeline.ZScore(viewKey, "")
 	pipeline.ZScore(clickKey, "")
 	res, err = pipeline.Exec()
-	if err != nil && err != redis.Nil{
+	if err != nil && err != redis.Nil {
 		log.Println("pipeline2 err in UpdateCpms: ", err)
 		//return
 	}
@@ -488,7 +508,7 @@ func (c *Client) UpdateCpms(adId string) {
 		pipeline.ZScore(viewKey, word)
 		pipeline.ZScore(clickKey, word)
 		res, err = pipeline.Exec()
-		if err != nil && err != redis.Nil{
+		if err != nil && err != redis.Nil {
 			log.Println("pipeline3 err in UpdateCpms: ", err)
 			return
 		}
