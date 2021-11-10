@@ -204,8 +204,11 @@ func (c *Client) SearchAndSort(query string, id string, ttl int, sort string, st
 	return res.Val(), id
 }
 
+// SearchAndZsort : Listing 7.6 An updated function to search and sort based on votes and updated times
+// 與SearchAndSort相似, 但多了基於更新時間, 投票數量或者同時基於兩者條件進行排序收尋
 func (c *Client) SearchAndZsort(query string, id string, ttl int, update, vote float64, start, num int64,
 	desc bool) ([]string, string) {
+	// 刷新已有搜尋結果的ttl
 	if id != "" && !c.Conn.Expire(id, time.Duration(ttl)*time.Second).Val() {
 		id = ""
 	}
@@ -213,17 +216,21 @@ func (c *Client) SearchAndZsort(query string, id string, ttl int, update, vote f
 	if id == "" {
 		id = c.ParseAndSearch(query, ttl)
 
+		// 再計算交集時也會用到傳入的ID鍵, 但這個鍵部會被用到排序權重
+		// zstore.Keys = append(zstore.Keys, "idx:"+key)
+		// zstore.Weights = append(zstore.Weights, scores[key])
 		scoredSearch := map[string]float64{
 			id:            0,
 			"sort:update": update,
 			"sort:votes":  vote,
 		}
-		id = c.Zintersect(scoredSearch, 300, "")
+		id = c.Zintersect(scoredSearch, ttl, "")
 	}
 
 	pipeline := c.Conn.TxPipeline()
 	pipeline.ZCard("idx:" + id)
 	var res *redis.StringSliceCmd
+	// 從搜尋結果取出一頁
 	if desc {
 		res = pipeline.ZRevRange("idx:"+id, start, start+num-1)
 	} else {
@@ -237,6 +244,7 @@ func (c *Client) SearchAndZsort(query string, id string, ttl int, update, vote f
 	return res.Val(), id
 }
 
+// zsetCommon : Listing 7.7 Some helper functions for performing ZSET intersections and unions
 func (c *Client) zsetCommon(method string, scores map[string]float64, ttl int, Aggre string) string {
 	id := uuid.NewV4().String()
 	pipeline := c.Conn.TxPipeline()
@@ -273,6 +281,7 @@ func (c *Client) ZUnion(items map[string]float64, ttl int, Aggre string) string 
 	return c.zsetCommon("ZUnionStore", items, ttl, Aggre)
 }
 
+// StringToScore : 將字串轉成為數字分值
 func (c *Client) StringToScore(str string, ignoreCase bool) int {
 	if ignoreCase {
 		str = strings.ToLower(str)
@@ -289,6 +298,7 @@ func (c *Client) StringToScore(str string, ignoreCase bool) int {
 		pieces = append(pieces, int(v))
 	}
 	for len(pieces) < 6 {
+		// 為長度不足6個字符的字串貼加佔位符, -1加在string末尾
 		pieces = append(pieces, -1)
 	}
 
@@ -304,6 +314,12 @@ func (c *Client) StringToScore(str string, ignoreCase bool) int {
 	return score*2 + temp
 }
 
+// IndexAd : Listing 7.10 A method for indexing an ad that’s targeted on location and ad content
+// client.IndexAd("1", []string{"USA", "CA"}, common.CONTENT, "cpc", 0.25)
+// client.IndexAd("2", []string{"USA", "VA"}, common.CONTENT+"wooooo", "cpc", 0.125)
+// 1. The first is that an ad can actually have multiple targeted locations.
+// 2. The second is that we’ll keep a dictionary that holds information about the average number of clicks and actions across the entire system
+// 3. Finally, we’ll also keep a SET of all of the terms that we can optionally target in the ad. I include this information as a precursor to learning about user behavior a little later.
 func (c *Client) IndexAd(id string, locations []string, content, types string, value float64) {
 	pipeline := c.Conn.TxPipeline()
 	for _, location := range locations {
@@ -321,10 +337,16 @@ func (c *Client) IndexAd(id string, locations []string, content, types string, v
 
 	rvalue := toECPM(types, 1000, common.AVERAGEPER1K[types], value)
 	pipeline.HSet("type:", id, types)
+
+	// 講廣告的 eCPM兼夾到一個記錄所有廣告的ePCM的zset裝
 	pipeline.ZAdd("idx:ad:value:", &redis.Z{Member: id, Score: rvalue})
+
+	// 將廣告的基本價個添加到一個記錄所有廣告的基本價格的zset裡面
 	pipeline.ZAdd("ad:baseValue:", &redis.Z{Member: id, Score: value})
+
 	//pipeline.SAdd("terms:"+id, words) FLAG
 	for _, word := range words {
+		// 將能夠對廣告進行定向的單字全部記錄起來
 		pipeline.SAdd("terms:"+id, word)
 	}
 	if _, err := pipeline.Exec(); err != nil {
