@@ -129,6 +129,7 @@ func Parse(query string) (all [][]string, unwantedlist []string) {
 }
 
 // ParseAndSearch : Listing 7.4 A function to parse a query and search documents
+// 回傳 臨時的set id
 func (c *Client) ParseAndSearch(query string, ttl int) string {
 	all, unwanted := Parse(query)
 
@@ -163,6 +164,8 @@ func (c *Client) ParseAndSearch(query string, ttl int) string {
 	return intersectResult
 }
 
+// SearchAndSort : Listing 7.5 A function to parse and search, sorting the results
+// client.SearchAndSort("content", "", 300, "-id", 0, 20)
 func (c *Client) SearchAndSort(query string, id string, ttl int, sort string, start, num int64) ([]string, string) {
 	var order string
 	if strings.HasPrefix(sort, "-") {
@@ -171,12 +174,15 @@ func (c *Client) SearchAndSort(query string, id string, ttl int, sort string, st
 		order = "ASC"
 	}
 
+	// 把字首字串去掉
 	sort = strings.TrimPrefix(sort, "-")
 	by := "kb:doc:*->" + sort
 
+	// 告訴 redis 排序是用數值方式進行,或者是字母
 	alpha := !strings.Contains(sort, "updated") && !strings.Contains(sort, "id") &&
 		!strings.Contains(sort, "created")
 
+	// 如果用戶給定已有的搜尋結果, 並且還沒過期, 延長此結果
 	if id != "" && !c.Conn.Expire(id, time.Duration(ttl)*time.Second).Val() {
 		id = ""
 	}
@@ -187,12 +193,14 @@ func (c *Client) SearchAndSort(query string, id string, ttl int, sort string, st
 
 	var res *redis.StringSliceCmd
 	pipeline := c.Conn.TxPipeline()
+	// 獲取集合元素個數
 	pipeline.SCard("idx:" + id)
 	res = pipeline.Sort("idx:"+id, &redis.Sort{By: by, Alpha: alpha, Order: order, Offset: start, Count: num})
 	if _, err := pipeline.Exec(); err != nil {
 		log.Println("pipeline err in SearchAndSort: ", err)
 		return nil, ""
 	}
+
 	return res.Val(), id
 }
 

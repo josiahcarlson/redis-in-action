@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/go-redis/redis/v7"
 	"redisInAction/Chapter07/common"
 	"redisInAction/Chapter07/model"
 	"redisInAction/redisConn"
@@ -10,6 +9,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/go-redis/redis/v7"
 )
 
 func Test(t *testing.T) {
@@ -241,18 +242,18 @@ func Test(t *testing.T) {
 		client.IndexJobYears("job2", map[string]int64{"q1": 0, "q2": 2})
 
 		utils.AssertTrue(t, reflect.DeepEqual(client.SearchJobYears(map[string]int64{"q1": 0}), []string{}))
-		utils.AssertTrue(t, reflect.DeepEqual(client.SearchJobYears(map[string]int64{"q1":1}), []string{"job1"}))
-		utils.AssertTrue(t, reflect.DeepEqual(client.SearchJobYears(map[string]int64{"q1":2}), []string{"job1"}))
-		utils.AssertTrue(t, reflect.DeepEqual(client.SearchJobYears(map[string]int64{"q2":1}), []string{}))
-		utils.AssertTrue(t, reflect.DeepEqual(client.SearchJobYears(map[string]int64{"q2":2}), []string{}))
+		utils.AssertTrue(t, reflect.DeepEqual(client.SearchJobYears(map[string]int64{"q1": 1}), []string{"job1"}))
+		utils.AssertTrue(t, reflect.DeepEqual(client.SearchJobYears(map[string]int64{"q1": 2}), []string{"job1"}))
+		utils.AssertTrue(t, reflect.DeepEqual(client.SearchJobYears(map[string]int64{"q2": 1}), []string{}))
+		utils.AssertTrue(t, reflect.DeepEqual(client.SearchJobYears(map[string]int64{"q2": 2}), []string{}))
 		utils.AssertTrue(t,
-			reflect.DeepEqual(client.SearchJobYears(map[string]int64{"q1":0, "q2":1}), []string{}))
+			reflect.DeepEqual(client.SearchJobYears(map[string]int64{"q1": 0, "q2": 1}), []string{}))
 		utils.AssertTrue(t,
-			reflect.DeepEqual(client.SearchJobYears(map[string]int64{"q1":0, "q2":2}), []string{"job2"}))
+			reflect.DeepEqual(client.SearchJobYears(map[string]int64{"q1": 0, "q2": 2}), []string{"job2"}))
 		utils.AssertTrue(t,
-			reflect.DeepEqual(client.SearchJobYears(map[string]int64{"q1":1, "q2":1}), []string{"job1"}))
+			reflect.DeepEqual(client.SearchJobYears(map[string]int64{"q1": 1, "q2": 1}), []string{"job1"}))
 		utils.AssertTrue(t,
-			reflect.DeepEqual(client.SearchJobYears(map[string]int64{"q1":1, "q2":2}), []string{"job1", "job2"}))
+			reflect.DeepEqual(client.SearchJobYears(map[string]int64{"q1": 1, "q2": 2}), []string{"job1", "job2"}))
 		t.Log("which passed")
 		client.Conn.FlushDB()
 	})
