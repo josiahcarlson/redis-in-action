@@ -375,52 +375,82 @@ func toECPM(types string, views, avg, value float64) float64 {
 	return rvalue
 }
 
+// TargetAds : 通過位置和頁面內容附加值實現廣告定向操作
 func (c *Client) TargetAds(locations []string, content string) (string, string) {
 	matchedAds, baseEcpm := c.matchLocation(&locations)
+	// fmt.Printf("matchedAds:%s,baseEcpm:%s", matchedAds, baseEcpm)
+
+	// Get an ID that can be used for reporting and recording of this particular ad targe.
 	words, targetedAds := c.finishScoring(matchedAds, baseEcpm, content)
 
 	pipeline := c.Conn.TxPipeline()
 	tempAd := &redis.StringSliceCmd{}
 	targetId := &redis.IntCmd{}
 	targetId = pipeline.Incr("ads:served:")
+
+	// 找到eCPM最高的廣告, 並獲得此廣告 ID. [{Score:0.25 Member:1} {Score:0.125 Member:2}]
 	tempAd = pipeline.ZRevRange("idx:"+targetedAds, 0, 0)
 	if _, err := pipeline.Exec(); err != nil {
 		log.Println("pipeline err in TargetAds: ", err)
 	}
+
 	targetedAd := tempAd.Val()
 	if len(targetedAd) == 0 {
 		return "", ""
 	}
 
 	adId := targetedAd[0]
+	// 紀錄一系列定向操作的執行結果, 作為學習用戶行為的其中一步驟
 	c.recordTargetingResult(strconv.Itoa(int(targetId.Val())), adId, words)
 	return strconv.Itoa(int(targetId.Val())), adId
 }
 
+/**
+ * @description: 基於位置執行廣告定向操作的輔助函式. A helper function for targeting ads based on location
+ * @param {*[]string} locations
+ * @return {*}
+ */
 func (c *Client) matchLocation(locations *[]string) (string, string) {
 	var required []string
 	for _, loc := range *locations {
+		// 根據所有給定的位置, 找出需要執行並集操作的集合鍵 ex: idx:req:USA idx:req:CA
 		required = append(required, "req:"+loc)
 	}
+	// 找出指定地區相匹配的廣告, 並將他們存到set裡
 	matchedAds := c.Union(required, 300)
+
+	// 找到存儲著所有被匹配廣告的集合, 交集以及存儲著所有被匹配廣告的基本eCPM的zset, 並返回此zset ID
 	baseEcpm := c.Zintersect(map[string]float64{matchedAds: 0, "ad:value:": 1}, 30, "")
 
 	return matchedAds, baseEcpm
 }
 
+/**
+ * @description: Calculating the eCPM of ads including content match bonuses
+ * @param {*} matched
+ * @param {*} base
+ * @param {string} content
+ * @return {*}
+ */
 func (c *Client) finishScoring(matched, base, content string) ([]string, string) {
 	bonusEcpm := map[string]float64{}
+	// 對內容進行 tokenize 以便與廣告進行匹配
 	words := Tokenize(content)
 	for _, word := range words {
+		// Find the ads that are location targeted that also have one of the words in the content.
 		wordBonus := c.Zintersect(map[string]float64{matched: 0, word: 1}, 30, "")
 		bonusEcpm[wordBonus] = 1
+		// fmt.Println(c.Conn.ZRange("idx:"+wordBonus, 0, -1))
 	}
 
 	if len(bonusEcpm) != 0 {
+		// Find the minimum and maximum eCPM bonuses for each ad.
 		minimum := c.ZUnion(bonusEcpm, 30, "MIN")
 		maximum := c.ZUnion(bonusEcpm, 30, "MAX")
+		// 將廣告的基本價錢, 最小 eCPM bouns 的一半, 最大 eCPM bouns 的一半相加
 		return words, c.ZUnion(map[string]float64{base: 1, minimum: 0.5, maximum: 0.5}, 30, "")
 	}
+	// If there were no words in the content to match against,return just the known eCPM.
 	return words, base
 }
 

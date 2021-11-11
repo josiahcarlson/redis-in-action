@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"redisInAction/Chapter07/common"
 	"redisInAction/Chapter07/model"
 	"redisInAction/redisConn"
@@ -256,5 +257,50 @@ func Test(t *testing.T) {
 			reflect.DeepEqual(client.SearchJobYears(map[string]int64{"q1": 1, "q2": 2}), []string{"job1", "job2"}))
 		t.Log("which passed")
 		client.Conn.FlushDB()
+	})
+}
+func Test2(t *testing.T) {
+	conn := redisConn.ConnectRedis()
+	client := model.NewClient(conn)
+	client.Conn.FlushDB()
+
+	t.Run("Test index and Target ads", func(t *testing.T) {
+		client.IndexAd("1", []string{"USA", "CA"}, common.CONTENT, "cpc", 0.25)
+		client.IndexAd("2", []string{"USA", "VA"}, common.CONTENT+"wooooo", "cpc", 0.125)
+
+		var adId, targetId string
+		for i := 0; i < 3; i++ {
+			fmt.Println(i)
+			targetId, adId = client.TargetAds([]string{"USA"}, common.CONTENT)
+			fmt.Printf("targetId:%s \t adId:%s", targetId, adId)
+		}
+		utils.AssertTrue(t, adId == "1")
+
+		// _, r := client.TargetAds([]string{"VA"}, "wooooo")
+		// utils.AssertTrue(t, r == "2")
+
+		// res := map[string]float64{}
+		// for _, v := range client.Conn.ZRangeWithScores("idx:ad:value:", 0, -1).Val() {
+		// 	res[v.Member.(string)] = v.Score
+		// }
+		// utils.AssertTrue(t, reflect.DeepEqual(res, map[string]float64{"2": 0.125, "1": 0.25}))
+		// for _, v := range client.Conn.ZRangeWithScores("ad:baseValue:", 0, -1).Val() {
+		// 	res[v.Member.(string)] = v.Score
+		// }
+		// utils.AssertTrue(t, reflect.DeepEqual(res, map[string]float64{"2": 0.125, "1": 0.25}))
+
+		// client.RecordClick(targetId, adId, false)
+		// res = map[string]float64{}
+		// for _, v := range client.Conn.ZRangeWithScores("idx:ad:value:", 0, -1).Val() {
+		// 	res[v.Member.(string)] = v.Score
+		// }
+
+		// utils.AssertTrue(t, reflect.DeepEqual(res, map[string]float64{"2": 0.125, "1": 2.5}))
+		// for _, v := range client.Conn.ZRangeWithScores("ad:baseValue:", 0, -1).Val() {
+		// 	res[v.Member.(string)] = v.Score
+		// }
+
+		// utils.AssertTrue(t, reflect.DeepEqual(res, map[string]float64{"2": 0.125, "1": 0.25}))
+		// defer client.Conn.FlushDB()
 	})
 }
