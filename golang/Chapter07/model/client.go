@@ -437,7 +437,7 @@ func (c *Client) finishScoring(matched, base, content string) ([]string, string)
 	// 對內容進行 tokenize 以便與廣告進行匹配
 	words := Tokenize(content)
 	for _, word := range words {
-		// Find the ads that are location targeted that also have one of the words in the content.
+		// Find the ads that are location targeted that also have one of the words in the content. 找出那些既未妤定向位置內, 又擁有頁面內容其中一個單字的廣告
 		wordBonus := c.Zintersect(map[string]float64{matched: 0, word: 1}, 30, "")
 		bonusEcpm[wordBonus] = 1
 		// fmt.Println(c.Conn.ZRange("idx:"+wordBonus, 0, -1))

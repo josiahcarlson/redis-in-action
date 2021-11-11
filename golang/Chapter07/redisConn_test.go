@@ -276,31 +276,32 @@ func Test2(t *testing.T) {
 		}
 		utils.AssertTrue(t, adId == "1")
 
-		// _, r := client.TargetAds([]string{"VA"}, "wooooo")
-		// utils.AssertTrue(t, r == "2")
+		_, r := client.TargetAds([]string{"VA"}, "wooooo")
+		utils.AssertTrue(t, r == "2")
 
-		// res := map[string]float64{}
-		// for _, v := range client.Conn.ZRangeWithScores("idx:ad:value:", 0, -1).Val() {
-		// 	res[v.Member.(string)] = v.Score
-		// }
-		// utils.AssertTrue(t, reflect.DeepEqual(res, map[string]float64{"2": 0.125, "1": 0.25}))
-		// for _, v := range client.Conn.ZRangeWithScores("ad:baseValue:", 0, -1).Val() {
-		// 	res[v.Member.(string)] = v.Score
-		// }
-		// utils.AssertTrue(t, reflect.DeepEqual(res, map[string]float64{"2": 0.125, "1": 0.25}))
+		res := map[string]float64{}
+		for _, v := range client.Conn.ZRangeWithScores("idx:ad:value:", 0, -1).Val() {
+			res[v.Member.(string)] = v.Score
+		}
+		utils.AssertTrue(t, reflect.DeepEqual(res, map[string]float64{"2": 0.125, "1": 0.25}))
 
-		// client.RecordClick(targetId, adId, false)
-		// res = map[string]float64{}
-		// for _, v := range client.Conn.ZRangeWithScores("idx:ad:value:", 0, -1).Val() {
-		// 	res[v.Member.(string)] = v.Score
-		// }
+		for _, v := range client.Conn.ZRangeWithScores("ad:baseValue:", 0, -1).Val() {
+			res[v.Member.(string)] = v.Score
+		}
+		utils.AssertTrue(t, reflect.DeepEqual(res, map[string]float64{"2": 0.125, "1": 0.25}))
 
-		// utils.AssertTrue(t, reflect.DeepEqual(res, map[string]float64{"2": 0.125, "1": 2.5}))
-		// for _, v := range client.Conn.ZRangeWithScores("ad:baseValue:", 0, -1).Val() {
-		// 	res[v.Member.(string)] = v.Score
-		// }
+		client.RecordClick(targetId, adId, false)
+		res = map[string]float64{}
+		for _, v := range client.Conn.ZRangeWithScores("idx:ad:value:", 0, -1).Val() {
+			res[v.Member.(string)] = v.Score
+		}
 
-		// utils.AssertTrue(t, reflect.DeepEqual(res, map[string]float64{"2": 0.125, "1": 0.25}))
-		// defer client.Conn.FlushDB()
+		utils.AssertTrue(t, reflect.DeepEqual(res, map[string]float64{"2": 0.125, "1": 2.5}))
+		for _, v := range client.Conn.ZRangeWithScores("ad:baseValue:", 0, -1).Val() {
+			res[v.Member.(string)] = v.Score
+		}
+
+		utils.AssertTrue(t, reflect.DeepEqual(res, map[string]float64{"2": 0.125, "1": 0.25}))
+		defer client.Conn.FlushDB()
 	})
 }
