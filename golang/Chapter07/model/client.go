@@ -454,6 +454,13 @@ func (c *Client) finishScoring(matched, base, content string) ([]string, string)
 	return words, base
 }
 
+/**
+ * @description: Listing 7.14 A method for recording the result after we’ve targeted an ad. To record this information, we’ll store a SET of the words that were targeted and keep counts of the number of times that the ad and words were seen as part of a single ZSET per ad.
+ * @param {*} targetId
+ * @param {string} adId
+ * @param {[]string} words
+ * @return {*}
+ */
 func (c *Client) recordTargetingResult(targetId, adId string, words []string) {
 	pipeline := c.Conn.TxPipeline()
 	terms := c.Conn.SMembers("terms:" + adId).Val()
@@ -468,6 +475,7 @@ func (c *Client) recordTargetingResult(targetId, adId string, words []string) {
 		}
 	}
 
+	// set 儲存被定向的單字, 如果有匹配的單字出現, 記錄他們, 設定15 mins ttl
 	if len(matched) != 0 {
 		matchedKey := fmt.Sprintf("terms:matched:%s", targetId)
 		for _, word := range matched {
@@ -476,8 +484,11 @@ func (c *Client) recordTargetingResult(targetId, adId string, words []string) {
 		pipeline.Expire(matchedKey, 900*time.Second)
 	}
 
+	// 為每種類型的廣告分別紀錄他觀看次數
 	types := c.Conn.HGet("type:", adId).Val()
 	pipeline.Incr(fmt.Sprintf("type:%s:views:", types))
+
+	// 紀錄廣告以及廣告包含的單字的展示訊息
 	for _, word := range matched {
 		pipeline.ZIncrBy(fmt.Sprintf("views:%s", adId), 1, word)
 	}
@@ -489,6 +500,7 @@ func (c *Client) recordTargetingResult(targetId, adId string, words []string) {
 		return
 	}
 
+	// 廣告每展示100次就更新一次他的ePCM, 抓res的最後一筆(zset: views:adId)
 	if int64(res[len(res)-1].(*redis.FloatCmd).Val())%100 == 0 {
 		c.UpdateCpms(adId)
 	}
@@ -597,6 +609,13 @@ func (c *Client) UpdateCpms(adId string) {
 	}
 }
 
+/**
+ * @description: Listing 7.15 A method for recording clicks on an ad
+ * @param {*} targetId
+ * @param {string} adId
+ * @param {bool} action
+ * @return {*}
+ */
 func (c *Client) RecordClick(targetId, adId string, action bool) {
 	pipeline := c.Conn.TxPipeline()
 	clickKey := fmt.Sprintf("clicks:%s", adId)
@@ -605,12 +624,14 @@ func (c *Client) RecordClick(targetId, adId string, action bool) {
 
 	types := c.Conn.HGet("type:", adId).Val()
 	if types == "cpa" {
+		// 如果是一個按動作計費的廣告, 並且被匹配的單字能存在,那麼刷新此但自過期時間
 		pipeline.Expire(matchKey, 900*time.Second)
 		if action {
 			clickKey = fmt.Sprintf("actions:%s", adId)
 		}
 	}
 
+	// 廣告類型的計數器
 	if action && types == "cpa" {
 		pipeline.Incr(fmt.Sprintf("type:%s:actions:", types))
 	} else {
@@ -627,6 +648,7 @@ func (c *Client) RecordClick(targetId, adId string, action bool) {
 		return
 	}
 
+	// 對廣告出現的所有單字的 eCPM 進行更新
 	c.UpdateCpms(adId)
 }
 

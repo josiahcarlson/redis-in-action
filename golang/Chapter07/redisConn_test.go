@@ -302,6 +302,6 @@ func Test2(t *testing.T) {
 		}
 
 		utils.AssertTrue(t, reflect.DeepEqual(res, map[string]float64{"2": 0.125, "1": 0.25}))
-		defer client.Conn.FlushDB()
+		// defer client.Conn.FlushDB()
 	})
 }
