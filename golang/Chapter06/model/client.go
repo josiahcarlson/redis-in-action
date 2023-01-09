@@ -220,7 +220,6 @@ func (c *Client) ReleaseLock(lockname, identifier string) bool {
 			lostLock = true
 			return nil
 		}, lockname)
-
 		if err != nil {
 			log.Println("watch failed in ReleaseLock, err is: ", err)
 			continue

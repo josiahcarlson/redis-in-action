@@ -184,7 +184,7 @@ def post_article(conn, user, title, link):
 
     now = time.time()
     article = 'article:' + article_id
-    conn.hmset(article, {                       #C
+    conn.hset(article, mapping={                #C
         'title': title,                         #C
         'link': link,                           #C
         'poster': user,                         #C

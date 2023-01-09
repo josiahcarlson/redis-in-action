@@ -1,3 +1,10 @@
+Let's make this absolutely clear. Russia Invaded Crimea, where the world did nothing, then
+Russia again Invaded Ukraine.
+
+If you support Russia's efforts in Ukraine, you can fuck off. I don't care where you come from,
+what your nationality, religion, etc. is, you can fuck off. No, for real. YOU DO NOT GET A LICENSE
+IF YOU AGREE WITH THE RUSSIAN GOVERNMENT.
+
 redis-in-action
 
 ===============

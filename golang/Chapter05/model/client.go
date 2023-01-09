@@ -3,8 +3,6 @@ package model
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/go-redis/redis/v7"
-	uuid "github.com/satori/go.uuid"
 	"log"
 	"math"
 	"redisInAction/Chapter05/common"
@@ -14,6 +12,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/go-redis/redis/v7"
+	uuid "github.com/satori/go.uuid"
 )
 
 type Client struct {
@@ -409,7 +410,7 @@ func (c *Client) SetConfigs(types, component string, config map[string]string) {
 func (c *Client) GetConfigs(types, component string, wait int64) map[string]string {
 	key := fmt.Sprintf("config:%s:%s", types, component)
 
-	if ch, ok := checked[key]; !ok || ch < time.Now().Unix() - wait {
+	if ch, ok := checked[key]; !ok || ch < time.Now().Unix()-wait {
 		checked[key] = time.Now().Unix()
 		config := map[string]string{}
 		if err := json.Unmarshal([]byte(c.Conn.Get(key).Val()), &config); err != nil {
