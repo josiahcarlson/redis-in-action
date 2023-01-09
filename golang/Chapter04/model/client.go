@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"fmt"
 	"github.com/go-redis/redis/v7"
 	"log"
@@ -24,8 +25,7 @@ func (c *Client) ListItem(itemid, sellerid string, price float64) bool {
 		err := c.Conn.Watch(func(tx *redis.Tx) error {
 			if _, err := tx.TxPipelined(func(pipeliner redis.Pipeliner) error {
 				if !tx.SIsMember(inventory, itemid).Val() {
-					tx.Unwatch(inventory)
-					return nil
+					return errors.New("item doesn't belong to user")
 				}
 				pipeliner.ZAdd("market:", &redis.Z{Member: item, Score: price})
 				pipeliner.SRem(inventory, itemid)
@@ -55,10 +55,10 @@ func (c *Client) PurchaseItem(buyerid, itemid, sellerid string, lprice int64) bo
 	for time.Now().Unix() < end {
 		err := c.Conn.Watch(func(tx *redis.Tx) error {
 			if _, err := tx.TxPipelined(func(pipeliner redis.Pipeliner) error {
-				price := int64(pipeliner.ZScore("market:", item).Val())
+				price := int64(tx.ZScore("market:", item).Val())
 				funds, _ := tx.HGet(buyer, "funds").Int64()
 				if price != lprice || price > funds {
-					tx.Unwatch()
+					return errors.New("can not afford this item")
 				}
 
 				pipeliner.HIncrBy(seller, "funds", price)
@@ -109,4 +109,3 @@ func (c *Client) UpdateTokenPipeline (token, user, item string) {
 }
 
 //TODO: lack the parts before 4.4
-

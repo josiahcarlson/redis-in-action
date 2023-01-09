@@ -7,4 +7,5 @@ require (
 	github.com/onsi/ginkgo v1.11.0 // indirect
 	github.com/onsi/gomega v1.8.1 // indirect
 	github.com/satori/go.uuid v1.2.0
+	github.com/hashicorp/go-version v1.2.1
 )

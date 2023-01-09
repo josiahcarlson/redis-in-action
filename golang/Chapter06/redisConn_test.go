@@ -80,6 +80,63 @@ func Test(t *testing.T) {
 		defer client.Conn.FlushDB()
 	})
 
+	t.Run("Test list item", func(t *testing.T) {
+		t.Log("We need to set up just enough state so that a user can list an item")
+		seller := "seller"
+		item := "itemX"
+		client.Conn.SAdd("inventory:"+seller, item)
+		i := client.Conn.SMembers("inventory:" + seller).Val()
+		t.Log("The user's inventory has:", i)
+		utils.AssertTrue(t, len(i) > 0)
+
+		t.Log("Listing the item...")
+		l := client.ListItem(item, seller, 10)
+		t.Log("Listing the item succeeded?", l)
+		utils.AssertTrue(t, l)
+		r := client.Conn.ZRangeWithScores("market:", 0, -1).Val()
+		t.Log("The market contains:", r)
+		t.Log("The inventory: ", client.Conn.Get("inventory:"+seller).Val())
+		defer client.Conn.FlushDB()
+	})
+
+	t.Run("Test purchase item with lock", func(t *testing.T) {
+		seller := "seller"
+		item := "itemX"
+		client.Conn.SAdd("inventory:"+seller, item)
+		client.ListItem(item, seller, 10)
+		t.Log("We need to set up just enough state so a user can buy an item")
+
+		buyer := "buyer"
+		client.Conn.HSet("users:buyer", "funds", 125)
+		r := client.Conn.HGetAll("users:buyer").Val()
+		t.Log("The user has some money:", r)
+		utils.AssertTrue(t, len(r) != 0)
+
+		p := client.PurchaseItemWithLock(buyer, item, seller)
+		t.Log("Purchasing an item succeeded?", p)
+		utils.AssertTrue(t, p)
+
+		r = client.Conn.HGetAll("users:buyer").Val()
+		t.Log("buyer's money is now:", r)
+		funds, ok := r["funds"]
+		utils.AssertTrue(t, ok)
+		money, _ := strconv.Atoi(funds)
+		utils.AssertTrue(t, money == 125-10)
+
+		r = client.Conn.HGetAll("users:seller").Val()
+		t.Log("seller's money is now:", r)
+		funds, ok = r["funds"]
+		utils.AssertTrue(t, ok)
+		money, _ = strconv.Atoi(funds)
+		utils.AssertTrue(t, money == 10)
+
+		i := client.Conn.SMembers("inventory:" + buyer).Val()
+		t.Log("Their inventory is now:", i)
+		utils.AssertTrue(t, len(i) > 0)
+		utils.AssertTrue(t, client.Conn.ZScore("market:", "itemX.seller").Val() == 0)
+		defer client.Conn.FlushDB()
+	})
+
 	t.Run("Test distributed locking", func(t *testing.T) {
 		t.Log("Getting an initial lock...")
 		utils.AssertTrue(t, client.AcquireLockWithTimeout("testlock", 1, 1) != "")
@@ -165,7 +222,7 @@ func Test(t *testing.T) {
 		t.Log("Those messages are:", r1)
 		defer client.Conn.FlushDB()
 	})
-	
+
 	t.Run("Test file distribution", func(t *testing.T) {
 		tempDirPath, err := ioutil.TempDir("", "myTempDir")
 		if err != nil {
@@ -224,4 +281,3 @@ func Test(t *testing.T) {
 		}()
 	})
 }
-

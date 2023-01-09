@@ -32,7 +32,7 @@ func (r *Client) UpdateToken(token, user, item string) {
 	r.Conn.HSet("login:", token, user)
 	r.Conn.ZAdd("recent:", &redis.Z{Score: float64(timestamp), Member: token})
 	if item != "" {
-		r.Conn.ZAdd("viewed:"+token, item, timestamp)
+		r.Conn.ZAdd("viewed:"+token,  &redis.Z{Score: float64(timestamp), Member: item})
 		r.Conn.ZRemRangeByRank("viewed:"+token, 0, -26)
 	}
 }
@@ -147,7 +147,7 @@ func (r *Client) UpdateTokenModified(token, user string, item string) {
 	r.Conn.HSet("login:", token, user)
 	r.Conn.ZAdd("recent:", &redis.Z{Score: float64(timestamp), Member: token})
 	if item != "" {
-		r.Conn.ZAdd("viewed:"+token, item, timestamp)
+		r.Conn.ZAdd("viewed:"+token,  &redis.Z{Score: float64(timestamp), Member: item})
 		r.Conn.ZRemRangeByRank("viewed:"+token, 0, -26)
 		r.Conn.ZIncrBy("viewed:", -1, item)
 	}

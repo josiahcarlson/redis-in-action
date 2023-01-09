@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/go-redis/redis/v7"
 	uuid "github.com/satori/go.uuid"
@@ -127,6 +128,35 @@ func (c *Client) AcquireLock(lockname string, acquireTimeout float64) string {
 	return ""
 }
 
+func (c *Client) ListItem(itemid, sellerid string, price float64) bool {
+	inventory := fmt.Sprintf("inventory:%s", sellerid)
+	item := fmt.Sprintf("%s.%s", itemid, sellerid)
+	end := time.Now().Unix() + 5
+
+	for time.Now().Unix() < end {
+		err := c.Conn.Watch(func(tx *redis.Tx) error {
+			if _, err := tx.TxPipelined(func(pipeliner redis.Pipeliner) error {
+				if !tx.SIsMember(inventory, itemid).Val() {
+					return errors.New("item doesn't belong to user")
+				}
+				pipeliner.ZAdd("market:", &redis.Z{Member: item, Score: price})
+				pipeliner.SRem(inventory, itemid)
+				return nil
+			}); err != nil {
+				return err
+			}
+			return nil
+		}, inventory)
+
+		if err != nil {
+			log.Println("watch err: ", err)
+			return false
+		}
+		return true
+	}
+	return false
+}
+
 func (c *Client) PurchaseItemWithLock(buyerId, itemId, sellerId string) bool {
 	buyer := fmt.Sprintf("users:%s", buyerId)
 	seller := fmt.Sprintf("users:%s", sellerId)
@@ -148,23 +178,19 @@ func (c *Client) PurchaseItemWithLock(buyerId, itemId, sellerId string) bool {
 	resHget := &redis.StringCmd{}
 
 	pipe := c.Conn.TxPipeline()
-	if err := c.Conn.Watch(func(tx *redis.Tx) error {
-		resZscore = pipe.ZScore("market:", item)
-		resHget = tx.HGet(buyer, "funds")
-		if _, err := pipe.Exec(); err != nil {
-			log.Println("pipeline err in watch func of PurchaseItemWithLock: ", err)
-			return err
-		}
-		price = resZscore.Val()
-		funds, _ = strconv.ParseFloat(resHget.Val(), 64)
-		return nil
-	}); err != nil {
-		log.Println("tx err in PurchaseItemWithLock: ", err)
+	resZscore = pipe.ZScore("market:", item)
+	resHget = pipe.HGet(buyer, "funds")
+
+	if _, err := pipe.Exec(); err != nil {
+		log.Println("pipeline err in watch func of PurchaseItemWithLock: ", err)
 		return false
 	}
 
+	price = resZscore.Val()
+	funds, _ = strconv.ParseFloat(resHget.Val(), 64)
 
 	if price == 0 || price > funds {
+		log.Println("can not afford this")
 		return false
 	}
 
@@ -181,27 +207,26 @@ func (c *Client) PurchaseItemWithLock(buyerId, itemId, sellerId string) bool {
 
 func (c *Client) ReleaseLock(lockname, identifier string) bool {
 	lockname = "lock:" + lockname
-	var flag = true
-	for flag {
+	lostLock := false
+	for {
 		err := c.Conn.Watch(func(tx *redis.Tx) error {
-			pipe := tx.TxPipeline()
 			if tx.Get(lockname).Val() == identifier {
+				pipe := tx.TxPipeline()
 				pipe.Del(lockname)
-				if _, err := pipe.Exec(); err != nil {
-					return err
-				}
-				flag = true
-				return nil
+				_, err := pipe.Exec()
+				return err
 			}
-
-			tx.Unwatch()
-			flag = false
+			// lock was grabbed by others
+			lostLock = true
 			return nil
-		},lockname)
-
+		}, lockname)
 		if err != nil {
 			log.Println("watch failed in ReleaseLock, err is: ", err)
-			return false
+			continue
+		}
+
+		if lostLock {
+			return true
 		}
 	}
 	return true
@@ -453,7 +478,7 @@ type Pack struct {
 }
 
 type Messages struct {
-	ChatId string
+	ChatId       string
 	ChatMessages []Pack
 }
 
@@ -511,7 +536,7 @@ func (c *Client) FetchPendingMessage(recipient string) []Messages {
 
 		messages := []Pack{}
 		for _, v := range chatInfo[i+1] {
-			message :=Pack{}
+			message := Pack{}
 			if err := json.Unmarshal([]byte(v), &message); err != nil {
 				log.Println("unmarshal err in FetchPendingMessage: ", err)
 			}
@@ -526,7 +551,7 @@ func (c *Client) FetchPendingMessage(recipient string) []Messages {
 
 		pipeline.ZAdd("seen:" + recipient, &redis.Z{Member:chatId, Score:seenId})
 		if minId != nil {
-			pipeline.ZRemRangeByScore("msgs:" + chatId, string(0), strconv.Itoa(int(minId[0].Score)))
+			pipeline.ZRemRangeByScore("msgs:" + chatId, "0", strconv.Itoa(int(minId[0].Score)))
 		}
 		result[i] = Messages{ChatId:chatId, ChatMessages:messages}
 	}
@@ -535,7 +560,7 @@ func (c *Client) FetchPendingMessage(recipient string) []Messages {
 }
 
 func (c *Client) JoinChat(chatId, user string) {
-	messageId, _ := c.Conn.Get("ids" + chatId).Float64()
+	messageId, _ := c.Conn.Get("ids:" + chatId).Float64()
 
 	pipeline := c.Conn.TxPipeline()
 	pipeline.ZAdd("chat:" + chatId, &redis.Z{Member:user, Score:messageId})
@@ -638,7 +663,7 @@ func (c *Client) clean(channel string, waiting *[]os.FileInfo, count int) int64 
 	}
 
 	w0 := (*waiting)[0].Name()
-	res, err := c.Conn.Get(channel + w0 + ":donw").Int()
+	res, err := c.Conn.Get(channel + w0 + ":done").Int()
 	if err != nil {
 		//log.Println("Conn.Get err in clean: ", err)
 		return 0
