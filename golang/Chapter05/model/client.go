@@ -3,8 +3,6 @@ package model
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/go-redis/redis/v7"
-	uuid "github.com/satori/go.uuid"
 	"log"
 	"math"
 	"redisInAction/Chapter05/common"
@@ -14,6 +12,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/go-redis/redis/v7"
+	uuid "github.com/satori/go.uuid"
 )
 
 type Client struct {
@@ -249,7 +250,7 @@ func (c *Client) AccessTime(context string, f func()) {
 	average := stats[1].(*redis.FloatCmd).Val() / stats[0].(*redis.FloatCmd).Val()
 
 	pipe := c.Conn.TxPipeline()
-	pipe.ZAdd("slowest:AccessTime", &redis.Z{Member:context, Score: average})
+	pipe.ZAdd("slowest:AccessTime", &redis.Z{Member: context, Score: average})
 	pipe.ZRemRangeByRank("slowest:AccessTime", 0, -101)
 	if _, err := pipe.Exec(); err != nil {
 		log.Println("pipeline err in AccessTime: ", err)
@@ -349,7 +350,7 @@ func (c *Client) ImportCityToRedis(filename string) {
 
 func (c *Client) FindCityByIp(ip string) string {
 	ipAddress := strconv.Itoa(int(c.IpToScore(ip)))
-	res := c.Conn.ZRangeByScore("ip2cityid:", &redis.ZRangeBy{Max: ipAddress, Min: "0", Offset: 0, Count: 2}).Val()
+	res := c.Conn.ZRevRangeByScore("ip2cityid:", &redis.ZRangeBy{Max: ipAddress, Min: "0", Offset: 0, Count: 2}).Val()
 	if len(res) == 0 {
 		return ""
 	}
@@ -411,7 +412,7 @@ func (c *Client) SetConfigs(types, component string, config map[string]string) {
 func (c *Client) GetConfigs(types, component string, wait int64) map[string]string {
 	key := fmt.Sprintf("config:%s:%s", types, component)
 
-	if ch, ok := checked[key]; !ok || ch < time.Now().Unix() - wait {
+	if ch, ok := checked[key]; !ok || ch < time.Now().Unix()-wait {
 		checked[key] = time.Now().Unix()
 		config := map[string]string{}
 		if err := json.Unmarshal([]byte(c.Conn.Get(key).Val()), &config); err != nil {
