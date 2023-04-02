@@ -234,7 +234,7 @@ class Inventory(object):
 class TestCh02(unittest.TestCase):
     def setUp(self):
         import redis
-        self.conn = redis.Redis(db=15)
+        self.conn = redis.Redis(host="redis-in-action-redis", db=15)
 
     def tearDown(self):
         conn = self.conn
