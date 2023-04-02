@@ -46,7 +46,7 @@ def redis_connection(component, wait=1):                        #A
             config = _config
 
             if config != old_config:                            #H
-                REDIS_CONNECTIONS[key] = redis.Redis(**config)  #H
+                REDIS_CONNECTIONS[key] = redis.Redis(host="redis-in-action-redis", **config)  #H
 
             return function(                                    #I
                 REDIS_CONNECTIONS.get(key), *args, **kwargs)    #I
@@ -155,7 +155,7 @@ def get_redis_connection(component, wait=1):
         config_connection, 'redis', component, wait)    #B
 
     if config != old_config:                            #C
-        REDIS_CONNECTIONS[key] = redis.Redis(**config)  #C
+        REDIS_CONNECTIONS[key] = redis.Redis(host="redis-in-action-redis", **config)  #C
 
     return REDIS_CONNECTIONS.get(key)                   #D
 # <end id="get-connection"/>
@@ -585,7 +585,7 @@ def syndicate_status(uid, post, start=0, on_lists=False):
                 timeline, 0, -HOME_TIMELINE_SIZE-1)     #G
         pipe.execute()
 
-    conn = redis.Redis()
+    conn = redis.Redis(host="redis-in-action-redis")
     if len(followers) >= POSTS_PER_PASS:
         execute_later(conn, 'default', 'syndicate_status',
             [uid, post, start, on_lists])
@@ -612,13 +612,13 @@ def _fake_shards_for(conn, component, count, actual):
 class TestCh10(unittest.TestCase):
     def _flush(self):
         self.conn.flushdb()
-        redis.Redis(db=14).flushdb()
-        redis.Redis(db=13).flushdb()
-        redis.Redis(db=12).flushdb()
-        redis.Redis(db=11).flushdb()
+        redis.Redis(host="redis-in-action-redis", db=14).flushdb()
+        redis.Redis(host="redis-in-action-redis", db=13).flushdb()
+        redis.Redis(host="redis-in-action-redis", db=12).flushdb()
+        redis.Redis(host="redis-in-action-redis", db=11).flushdb()
         
     def setUp(self):
-        self.conn = redis.Redis(db=15)
+        self.conn = redis.Redis(host="redis-in-action-redis", db=15)
         self._flush()
         global config_connection
         config_connection = self.conn
@@ -633,8 +633,8 @@ class TestCh10(unittest.TestCase):
         for i in range(10):
             get_sharded_connection('shard', i, 2).sadd('foo', i)
 
-        s0 = redis.Redis(db=14).scard('foo')
-        s1 = redis.Redis(db=13).scard('foo')
+        s0 = redis.Redis(host="redis-in-action-redis", db=14).scard('foo')
+        s1 = redis.Redis(host="redis-in-action-redis", db=13).scard('foo')
         self.assertTrue(s0 < 10)
         self.assertTrue(s1 < 10)
         self.assertEqual(s0 + s1, 10)
@@ -650,7 +650,7 @@ class TestCh10(unittest.TestCase):
         base = 'unique:%s'%date.today().isoformat()
         total = 0
         for c in shards:
-            conn = redis.Redis(**c)
+            conn = redis.Redis(host="redis-in-action-redis", **c)
             keys = conn.keys(base + ':*')
             for k in keys:
                 cnt = conn.scard(k)
@@ -710,7 +710,7 @@ class TestCh10(unittest.TestCase):
         self.assertEqual(sharded_timelines['home:1'].zcard('home:1'), 9)
         
         for db in range(14, 10, -1):
-            self.assertTrue(len(list(redis.Redis(db=db).keys())) > 0)
+            self.assertTrue(len(list(redis.Redis(host="redis-in-action-redis", db=db).keys())) > 0)
         for u2 in range(2, 11):
             self.assertEqual(self.conn.zcard('followers:%i'%u2), 1)
             self.assertEqual(self.conn.zcard('following:%i'%u2), 1)
@@ -729,7 +729,7 @@ class TestCh10(unittest.TestCase):
         
         allkeys = defaultdict(int)
         for db in range(14, 10, -1):
-            c = redis.Redis(db=db)
+            c = redis.Redis(host="redis-in-action-redis", db=db)
             for k in list(c.keys()):
                 allkeys[k] += c.zcard(k)
 
