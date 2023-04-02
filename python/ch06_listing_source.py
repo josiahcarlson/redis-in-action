@@ -809,7 +809,7 @@ def readblocks_gz(conn, key):
 class TestCh06(unittest.TestCase):
     def setUp(self):
         import redis
-        self.conn = redis.Redis(db=15)
+        self.conn = redis.Redis(host="redis-in-action-redis", db=15)
 
     def tearDown(self):
         self.conn.flushdb()
