@@ -485,7 +485,7 @@ def aggregate_location_list(conn, user_ids):
 
 class TestCh09(unittest.TestCase):
     def setUp(self):
-        self.conn = redis.Redis(db=15, encoding='latin-1')
+        self.conn = redis.Redis(host="redis-in-action-redis", db=15, encoding='latin-1')
         self.conn.flushdb()
     def tearDown(self):
         self.conn.flushdb()
