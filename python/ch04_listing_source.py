@@ -287,7 +287,7 @@ LRANGE (first 600 elements): 9041.59 requests per second
 class TestCh04(unittest.TestCase):
     def setUp(self):
         import redis
-        self.conn = redis.Redis(db=15)
+        self.conn = redis.Redis(host="redis-in-action-redis", db=15)
         self.conn.flushdb()
 
     def tearDown(self):

@@ -8,11 +8,10 @@ services:
     tty: true
     volumes:
       - ".:/usr/src/app"
-    network_mode: "host"
-
+    depends_on:
+      - redis
   redis:
     image: "redis:latest"
     container_name: "redis-in-action-redis"
     ports:
       - "6379:6379"
-    network_mode: "host"

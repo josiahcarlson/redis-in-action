@@ -220,7 +220,7 @@ def update_stats(conn, context, type, value, timeout=5):
             
             if not existing:
                 pipe.set(start_key, hour_start)
-            elif existing < hour_start:
+            elif existing < bytes(hour_start, encoding='utf-8'):
                 pipe.rename(destination, destination + ':last') #B
                 pipe.rename(start_key, destination + ':pstart') #B
                 pipe.set(start_key, hour_start)                 #B
@@ -446,7 +446,7 @@ def redis_connection(component, wait=1):                        #A
                 config_connection, 'redis', component, wait)    #G
 
             if config != old_config:                            #H
-                REDIS_CONNECTIONS[key] = redis.Redis(**config)  #H
+                REDIS_CONNECTIONS[key] = redis.Redis(host="redis-in-action-redis", **config)  #H
 
             return function(                                    #I
                 REDIS_CONNECTIONS.get(key), *args, **kwargs)    #I
@@ -527,7 +527,7 @@ class TestCh05(unittest.TestCase):
     def setUp(self):
         global config_connection
         import redis
-        self.conn = config_connection = redis.Redis(db=15)
+        self.conn = config_connection = redis.Redis(host="redis-in-action-redis", db=15)
         self.conn.flushdb()
 
     def tearDown(self):

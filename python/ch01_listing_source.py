@@ -260,7 +260,7 @@ def get_group_articles(conn, group, page, order='score:'):
 class TestCh01(unittest.TestCase):
     def setUp(self):
         import redis
-        self.conn = redis.Redis(db=15)
+        self.conn = redis.Redis(host="redis-in-action-redis", db=15)
 
     def tearDown(self):
         del self.conn

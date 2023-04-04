@@ -894,7 +894,7 @@ if __name__ == '__main__':                  #A
 
 class TestCh08(unittest.TestCase):
     def setUp(self):
-        self.conn = redis.Redis(db=15)
+        self.conn = redis.Redis(host="redis-in-action-redis", db=15)
         self.conn.flushdb()
     def tearDown(self):
         self.conn.flushdb()
