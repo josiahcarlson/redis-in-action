@@ -13,6 +13,8 @@ services:
             - .:/src/app
         networks:
             - my-test
+        depends_on:
+            - redis
     
     redis:
         image: redis:6.0-rc-alpine
