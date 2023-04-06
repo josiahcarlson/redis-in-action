@@ -2,7 +2,7 @@ package config
 
 // config for redis
 var (
-	Addr     = "localhost:6379"
+	Addr     = "redis-in-action-redis:6379"
 	Password = ""
 	DB       = 15
 )
