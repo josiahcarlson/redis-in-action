@@ -1,5 +1,5 @@
 import redis.clients.jedis.Jedis;
-import redis.clients.jedis.ZParams;
+import redis.clients.jedis.params.ZParams;
 
 import java.util.*;
 

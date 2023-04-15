@@ -1,6 +1,6 @@
 import com.google.gson.Gson;
 import redis.clients.jedis.Jedis;
-import redis.clients.jedis.Tuple;
+import redis.clients.jedis.resps.Tuple;
 
 import java.net.MalformedURLException;
 import java.net.URL;
