@@ -349,7 +349,7 @@ public class Chapter08 {
     public void syndicateStatus(
         Jedis conn, long uid, long postId, long postTime, double start)
     {
-        Set<Tuple> followers = conn.zrangeByScoreWithScores(
+        List<Tuple> followers = conn.zrangeByScoreWithScores(
             "followers:" + uid,
             String.valueOf(start), "inf",
             0, POSTS_PER_PASS);
@@ -409,7 +409,7 @@ public class Chapter08 {
     public List<Map<String,String>> getStatusMessages(
         Jedis conn, long uid, int page, int count)
     {
-        Set<String> statusIds = conn.zrevrange(
+        List<String> statusIds = conn.zrevrange(
             "home:" + uid, (page - 1) * count, page * count - 1);
 
         Transaction trans = conn.multi();
@@ -439,7 +439,7 @@ public class Chapter08 {
             return;
         }
 
-        Set<Tuple> users = conn.zrangeByScoreWithScores(
+        List<Tuple> users = conn.zrangeByScoreWithScores(
             incoming, String.valueOf(start), "inf", 0, REFILL_USERS_STEP);
 
         Pipeline pipeline = conn.pipelined();
@@ -491,7 +491,7 @@ public class Chapter08 {
             key = "list:out:" + uid;
             base = "list:statuses:";
         }
-        Set<Tuple> followers = conn.zrangeByScoreWithScores(
+        List<Tuple> followers = conn.zrangeByScoreWithScores(
             key, String.valueOf(start), "inf", 0, POSTS_PER_PASS);
 
         Transaction trans = conn.multi();

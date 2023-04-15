@@ -885,7 +885,7 @@ public class Chapter07 {
         trans.exec();
     }
 
-    public Set<String> findJobs(Jedis conn, String... candidateSkills) {
+    public List<String> findJobs(Jedis conn, String... candidateSkills) {
         String[] keys = new String[candidateSkills.length];
         int[] weights = new int[candidateSkills.length];
         for (int i = 0; i < candidateSkills.length; i++) {

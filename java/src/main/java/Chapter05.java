@@ -78,7 +78,7 @@ public class Chapter05 {
                 logCommon(conn, "test", "message-" + count);
             }
         }
-        Set<Tuple> common = conn.zrevrangeWithScores("common:test:info", 0, -1);
+        List<Tuple> common = conn.zrevrangeWithScores("common:test:info", 0, -1);
         System.out.println("The current number of common messages is: " + common.size());
         System.out.println("Those common messages are:");
         for (Tuple tuple : common){
@@ -153,7 +153,7 @@ public class Chapter05 {
             timer.stop("req-" + i);
         }
         System.out.println("The slowest access times are:");
-        Set<Tuple> atimes = conn.zrevrangeWithScores("slowest:AccessTime", 0, -1);
+        List<Tuple> atimes = conn.zrevrangeWithScores("slowest:AccessTime", 0, -1);
         for (Tuple tuple : atimes){
             System.out.println("  " + tuple.getElement() + ", " + tuple.getScore());
         }
@@ -359,7 +359,7 @@ public class Chapter05 {
     public Map<String,Double> getStats(Jedis conn, String context, String type){
         String key = "stats:" + context + ':' + type;
         Map<String,Double> stats = new HashMap<String,Double>();
-        Set<Tuple> data = conn.zrangeWithScores(key, 0, -1);
+        List<Tuple> data = conn.zrangeWithScores(key, 0, -1);
         for (Tuple tuple : data){
             stats.put(tuple.getElement(), tuple.getScore());
         }
@@ -523,7 +523,7 @@ public class Chapter05 {
 
     public String[] findCityByIp(Jedis conn, String ipAddress) {
         int score = ipToScore(ipAddress);
-        Set<String> results = conn.zrevrangeByScore("ip2cityid:", score, 0, 0, 1);
+        List<String> results = conn.zrevrangeByScore("ip2cityid:", score, 0, 0, 1);
         if (results.size() == 0) {
             return null;
         }
@@ -558,7 +558,7 @@ public class Chapter05 {
                 long start = System.currentTimeMillis() + timeOffset;
                 int index = 0;
                 while (index < conn.zcard("known:")){
-                    Set<String> hashSet = conn.zrange("known:", index, index);
+                    List<String> hashSet = conn.zrange("known:", index, index);
                     index++;
                     if (hashSet.size() == 0) {
                         break;

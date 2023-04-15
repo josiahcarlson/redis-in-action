@@ -44,7 +44,7 @@ public class Chapter04 {
         boolean l = listItem(conn, item, seller, 10);
         System.out.println("Listing the item succeeded? " + l);
         assert l;
-        Set<Tuple> r = conn.zrangeWithScores("market:", 0, -1);
+        List<Tuple> r = conn.zrangeWithScores("market:", 0, -1);
         System.out.println("The market contains:");
         for (Tuple tuple : r){
             System.out.println("  " + tuple.getElement() + ", " + tuple.getScore());

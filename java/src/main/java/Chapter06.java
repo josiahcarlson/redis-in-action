@@ -586,8 +586,7 @@ public class Chapter06 {
 
     @SuppressWarnings("unchecked")
     public List<ChatMessages> fetchPendingMessages(Jedis conn, String recipient) {
-        Set<Tuple> seenSet = conn.zrangeWithScores("seen:" + recipient, 0, -1);
-        List<Tuple> seenList = new ArrayList<Tuple>(seenSet);
+        List<Tuple> seenList = conn.zrangeWithScores("seen:" + recipient, 0, -1);
 
         Transaction trans = conn.multi();
         for (Tuple tuple : seenList){
@@ -628,10 +627,10 @@ public class Chapter06 {
             conn.zadd("chat:" + chatId, seenId, recipient);
             seenUpdates.add(new Object[]{"seen:" + recipient, seenId, chatId});
 
-            Set<Tuple> minIdSet = conn.zrangeWithScores("chat:" + chatId, 0, 0);
-            if (minIdSet.size() > 0){
+            List<Tuple> minIdList = conn.zrangeWithScores("chat:" + chatId, 0, 0);
+            if (minIdList.size() > 0){
                 msgRemoves.add(new Object[]{
-                    "msgs:" + chatId, minIdSet.iterator().next().getScore()});
+                    "msgs:" + chatId, minIdList.iterator().next().getScore()});
             }
             chatMessages.add(new ChatMessages(chatId, messages));
         }
@@ -789,7 +788,7 @@ public class Chapter06 {
 
         public void run() {
             while (!quit){
-                Set<Tuple> items = conn.zrangeWithScores("delayed:", 0, 0);
+                List<Tuple> items = conn.zrangeWithScores("delayed:", 0, 0);
                 Tuple item = items.size() > 0 ? items.iterator().next() : null;
                 if (item == null || item.getScore() > System.currentTimeMillis()) {
                     try{
