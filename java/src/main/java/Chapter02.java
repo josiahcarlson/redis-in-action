@@ -16,7 +16,7 @@ public class Chapter02 {
     public void run()
         throws InterruptedException
     {
-        Jedis conn = new Jedis("localhost");
+        Jedis conn = new Jedis("redis://localhost:6379");
         conn.select(15);
 
         testLoginCookies(conn);
@@ -263,7 +263,7 @@ public class Chapter02 {
         private boolean quit;
 
         public CleanSessionsThread(int limit) {
-            this.conn = new Jedis("localhost");
+            this.conn = new Jedis("redis://localhost:6379");
             this.conn.select(15);
             this.limit = limit;
         }
@@ -308,7 +308,7 @@ public class Chapter02 {
         private boolean quit;
 
         public CleanFullSessionsThread(int limit) {
-            this.conn = new Jedis("localhost");
+            this.conn = new Jedis("redis://localhost:6379");
             this.conn.select(15);
             this.limit = limit;
         }
@@ -353,7 +353,7 @@ public class Chapter02 {
         private boolean quit;
 
         public CacheRowsThread() {
-            this.conn = new Jedis("localhost");
+            this.conn = new Jedis("redis://localhost:6379");
             this.conn.select(15);
         }
 
