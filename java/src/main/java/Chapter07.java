@@ -596,9 +596,9 @@ public class Chapter07 {
     }
 
     public long zaddString(Jedis conn, String name, Map<String,String> values) {
-        Map<Double,String> pieces = new HashMap<Double,String>(values.size());
+        Map<String,Double> pieces = new HashMap<String,Double>(values.size());
         for (Map.Entry<String,String> entry : values.entrySet()) {
-            pieces.put((double)stringToScore(entry.getValue()), entry.getKey());
+            pieces.put(entry.getKey(), (double)stringToScore(entry.getValue()));
         }
 
         return conn.zadd(name, pieces);
@@ -697,7 +697,7 @@ public class Chapter07 {
         if (bonusEcpm.size() > 0){
 
             String[] keys = new String[bonusEcpm.size()];
-            int[] weights = new int[bonusEcpm.size()];
+            double[] weights = new double[bonusEcpm.size()];
             int index = 0;
             for (Map.Entry<String,Integer> bonus : bonusEcpm.entrySet()){
                 keys[index] = bonus.getKey();
@@ -887,7 +887,7 @@ public class Chapter07 {
 
     public List<String> findJobs(Jedis conn, String... candidateSkills) {
         String[] keys = new String[candidateSkills.length];
-        int[] weights = new int[candidateSkills.length];
+        double[] weights = new double[candidateSkills.length];
         for (int i = 0; i < candidateSkills.length; i++) {
             keys[i] = "skill:" + candidateSkills[i];
             weights[i] = 1;
