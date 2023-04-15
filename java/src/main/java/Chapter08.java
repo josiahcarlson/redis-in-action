@@ -1,7 +1,7 @@
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.Transaction;
-import redis.clients.jedis.Tuple;
+import redis.clients.jedis.resps.Tuple;
 
 import java.lang.reflect.Method;
 import java.util.*;
@@ -20,7 +20,7 @@ public class Chapter08 {
     public void run()
         throws InterruptedException
     {
-        Jedis conn = new Jedis("localhost");
+        Jedis conn = new Jedis("redis://localhost:6379");
         conn.select(15);
         conn.flushDB();
 
@@ -239,7 +239,7 @@ public class Chapter08 {
         List<Object> response = trans.exec();
         long following = (Long)response.get(response.size() - 3);
         long followers = (Long)response.get(response.size() - 2);
-        Set<Tuple> statuses = (Set<Tuple>)response.get(response.size() - 1);
+        List<Tuple> statuses = (ArrayList<Tuple>)response.get(response.size() - 1);
 
         trans = conn.multi();
         trans.hset("user:" + uid, "following", String.valueOf(following));
@@ -349,7 +349,7 @@ public class Chapter08 {
     public void syndicateStatus(
         Jedis conn, long uid, long postId, long postTime, double start)
     {
-        Set<Tuple> followers = conn.zrangeByScoreWithScores(
+        List<Tuple> followers = conn.zrangeByScoreWithScores(
             "followers:" + uid,
             String.valueOf(start), "inf",
             0, POSTS_PER_PASS);
@@ -409,7 +409,7 @@ public class Chapter08 {
     public List<Map<String,String>> getStatusMessages(
         Jedis conn, long uid, int page, int count)
     {
-        Set<String> statusIds = conn.zrevrange(
+        List<String> statusIds = conn.zrevrange(
             "home:" + uid, (page - 1) * count, page * count - 1);
 
         Transaction trans = conn.multi();
@@ -439,7 +439,7 @@ public class Chapter08 {
             return;
         }
 
-        Set<Tuple> users = conn.zrangeByScoreWithScores(
+        List<Tuple> users = conn.zrangeByScoreWithScores(
             incoming, String.valueOf(start), "inf", 0, REFILL_USERS_STEP);
 
         Pipeline pipeline = conn.pipelined();
@@ -491,7 +491,7 @@ public class Chapter08 {
             key = "list:out:" + uid;
             base = "list:statuses:";
         }
-        Set<Tuple> followers = conn.zrangeByScoreWithScores(
+        List<Tuple> followers = conn.zrangeByScoreWithScores(
             key, String.valueOf(start), "inf", 0, POSTS_PER_PASS);
 
         Transaction trans = conn.multi();
@@ -538,7 +538,7 @@ public class Chapter08 {
         }
 
         public void run() {
-            Jedis conn = new Jedis("localhost");
+            Jedis conn = new Jedis("redis://localhost:6379");
             conn.select(15);
 
             Object[] args = new Object[this.args.length + 1];

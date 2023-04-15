@@ -1,6 +1,6 @@
 import com.google.gson.Gson;
 import redis.clients.jedis.Jedis;
-import redis.clients.jedis.Tuple;
+import redis.clients.jedis.resps.Tuple;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -16,7 +16,7 @@ public class Chapter02 {
     public void run()
         throws InterruptedException
     {
-        Jedis conn = new Jedis("localhost");
+        Jedis conn = new Jedis("redis://localhost:6379");
         conn.select(15);
 
         testLoginCookies(conn);
@@ -103,7 +103,7 @@ public class Chapter02 {
         System.out.println("First, let's schedule caching of itemX every 5 seconds");
         scheduleRowCache(conn, "itemX", 5);
         System.out.println("Our schedule looks like:");
-        Set<Tuple> s = conn.zrangeWithScores("schedule:", 0, -1);
+        List<Tuple> s = conn.zrangeWithScores("schedule:", 0, -1);
         for (Tuple tuple : s){
             System.out.println("  " + tuple.getElement() + ", " + tuple.getScore());
         }
@@ -263,7 +263,7 @@ public class Chapter02 {
         private boolean quit;
 
         public CleanSessionsThread(int limit) {
-            this.conn = new Jedis("localhost");
+            this.conn = new Jedis("redis://localhost:6379");
             this.conn.select(15);
             this.limit = limit;
         }
@@ -285,8 +285,8 @@ public class Chapter02 {
                 }
 
                 long endIndex = Math.min(size - limit, 100);
-                Set<String> tokenSet = conn.zrange("recent:", 0, endIndex - 1);
-                String[] tokens = tokenSet.toArray(new String[tokenSet.size()]);
+                List<String> tokenList = conn.zrange("recent:", 0, endIndex - 1);
+                String[] tokens = tokenList.toArray(new String[tokenList.size()]);
 
                 ArrayList<String> sessionKeys = new ArrayList<String>();
                 for (String token : tokens) {
@@ -308,7 +308,7 @@ public class Chapter02 {
         private boolean quit;
 
         public CleanFullSessionsThread(int limit) {
-            this.conn = new Jedis("localhost");
+            this.conn = new Jedis("redis://localhost:6379");
             this.conn.select(15);
             this.limit = limit;
         }
@@ -330,8 +330,8 @@ public class Chapter02 {
                 }
 
                 long endIndex = Math.min(size - limit, 100);
-                Set<String> sessionSet = conn.zrange("recent:", 0, endIndex - 1);
-                String[] sessions = sessionSet.toArray(new String[sessionSet.size()]);
+                List<String> sessionList = conn.zrange("recent:", 0, endIndex - 1);
+                String[] sessions = sessionList.toArray(new String[sessionList.size()]);
 
                 ArrayList<String> sessionKeys = new ArrayList<String>();
                 for (String sess : sessions) {
@@ -353,7 +353,7 @@ public class Chapter02 {
         private boolean quit;
 
         public CacheRowsThread() {
-            this.conn = new Jedis("localhost");
+            this.conn = new Jedis("redis://localhost:6379");
             this.conn.select(15);
         }
 
@@ -364,7 +364,7 @@ public class Chapter02 {
         public void run() {
             Gson gson = new Gson();
             while (!quit){
-                Set<Tuple> range = conn.zrangeWithScores("schedule:", 0, 0);
+                List<Tuple> range = conn.zrangeWithScores("schedule:", 0, 0);
                 Tuple next = range.size() > 0 ? range.iterator().next() : null;
                 long now = System.currentTimeMillis() / 1000;
                 if (next == null || next.getScore() > now){
