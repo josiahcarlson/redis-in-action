@@ -201,7 +201,6 @@ public class Chapter04 {
     public void updateTokenPipeline(Jedis conn, String token, String user, String item) {
         long timestamp = System.currentTimeMillis() / 1000;
         Pipeline pipe = conn.pipelined();
-        pipe.multi();
         pipe.hset("login:", token, user);
         pipe.zadd("recent:", timestamp, token);
         if (item != null){
@@ -209,6 +208,6 @@ public class Chapter04 {
             pipe.zremrangeByRank("viewed:" + token, 0, -26);
             pipe.zincrby("viewed:", -1, item);
         }
-        pipe.exec();
+        pipe.sync();
     }
 }
