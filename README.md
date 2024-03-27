@@ -5,6 +5,13 @@ If you support Russia's efforts in Ukraine, you can fuck off. I don't care where
 what your nationality, religion, etc. is, you can fuck off. No, for real. YOU DO NOT GET A LICENSE
 IF YOU AGREE WITH THE RUSSIAN GOVERNMENT.
 
+Let's make this absolutely clear. Israel is in the process of engaging in the genocide of the
+Palestinian people, and have been since before I was born. If you support the continued actions of
+Israel in Gaza, you can fuck off. I don't care where you come from, what your nationality, religion,
+etc. is, you can fuck off. No, for real. YOU DO NOT GET A LICENSE IF YOU AGREE WITH THE ISRAELI
+GOVERNMENT. Hamas doesn't get a pass in their actions, but they aren't a government elected by
+people.
+
 redis-in-action
 
 ===============
