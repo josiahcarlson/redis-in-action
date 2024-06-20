@@ -1,5 +1,9 @@
 import org.javatuples.Pair;
-import redis.clients.jedis.*;
+import redis.clients.jedis.Jedis;
+import redis.clients.jedis.Transaction;
+import redis.clients.jedis.resps.Tuple;
+import redis.clients.jedis.params.ZParams;
+import redis.clients.jedis.params.SortingParams;
 
 import java.util.*;
 import java.util.regex.Matcher;
@@ -38,7 +42,7 @@ public class Chapter07 {
     }
 
     public void run(){
-        Jedis conn = new Jedis("localhost");
+        Jedis conn = new Jedis("redis://localhost:6379");
         conn.select(15);
         conn.flushDB();
 
@@ -356,7 +360,7 @@ public class Chapter07 {
 
         String id = UUID.randomUUID().toString();
         try{
-            trans.getClass()
+            trans.getClass().getSuperclass()
                 .getDeclaredMethod(method, String.class, String[].class)
                 .invoke(trans, "idx:" + id, keys);
         }catch(Exception e){
@@ -388,7 +392,7 @@ public class Chapter07 {
 
         String id = UUID.randomUUID().toString();
         try{
-            trans.getClass()
+            trans.getClass().getSuperclass()
                 .getDeclaredMethod(method, String.class, ZParams.class, String[].class)
                 .invoke(trans, "idx:" + id, params, keys);
         }catch(Exception e){
@@ -543,7 +547,7 @@ public class Chapter07 {
             id,
             ((Long)results.get(results.size() - 2)).longValue(),
             // Note: it's a LinkedHashSet, so it's ordered
-            new ArrayList<String>((Set<String>)results.get(results.size() - 1)));
+                (List<String>)results.get(results.size() - 1));
     }
 
     public long stringToScore(String string) {
@@ -592,9 +596,9 @@ public class Chapter07 {
     }
 
     public long zaddString(Jedis conn, String name, Map<String,String> values) {
-        Map<Double,String> pieces = new HashMap<Double,String>(values.size());
+            Map<String,Double> pieces = new HashMap<String,Double>(values.size());
         for (Map.Entry<String,String> entry : values.entrySet()) {
-            pieces.put((double)stringToScore(entry.getValue()), entry.getKey());
+            pieces.put(entry.getKey(), (double)stringToScore(entry.getValue()));
         }
 
         return conn.zadd(name, pieces);
@@ -659,7 +663,7 @@ public class Chapter07 {
 
         List<Object> response = trans.exec();
         long targetId = (Long)response.get(response.size() - 2);
-        Set<String> targetedAds = (Set<String>)response.get(response.size() - 1);
+        List<String> targetedAds = (List<String>)response.get(response.size() - 1);
 
         if (targetedAds.size() == 0){
             return new Pair<Long,String>(null, null);
@@ -693,7 +697,7 @@ public class Chapter07 {
         if (bonusEcpm.size() > 0){
 
             String[] keys = new String[bonusEcpm.size()];
-            int[] weights = new int[bonusEcpm.size()];
+            double[] weights = new double[bonusEcpm.size()];
             int index = 0;
             for (Map.Entry<String,Integer> bonus : bonusEcpm.entrySet()){
                 keys[index] = bonus.getKey();
@@ -881,9 +885,9 @@ public class Chapter07 {
         trans.exec();
     }
 
-    public Set<String> findJobs(Jedis conn, String... candidateSkills) {
+    public List<String> findJobs(Jedis conn, String... candidateSkills) {
         String[] keys = new String[candidateSkills.length];
-        int[] weights = new int[candidateSkills.length];
+        double[] weights = new double[candidateSkills.length];
         for (int i = 0; i < candidateSkills.length; i++) {
             keys[i] = "skill:" + candidateSkills[i];
             weights[i] = 1;
