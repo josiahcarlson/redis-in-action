@@ -2,7 +2,11 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import org.apache.commons.csv.CSVParser;
 import org.javatuples.Pair;
-import redis.clients.jedis.*;
+import redis.clients.jedis.Jedis;
+import redis.clients.jedis.Transaction;
+import redis.clients.jedis.resps.Tuple;
+import redis.clients.jedis.Pipeline;
+import redis.clients.jedis.params.ZParams;
 
 import java.io.File;
 import java.io.FileReader;
@@ -36,7 +40,7 @@ public class Chapter05 {
     public void run()
         throws InterruptedException
     {
-        Jedis conn = new Jedis("localhost");
+        Jedis conn = new Jedis("redis://localhost:6379");
         conn.select(15);
 
         testLogRecent(conn);
@@ -74,7 +78,7 @@ public class Chapter05 {
                 logCommon(conn, "test", "message-" + count);
             }
         }
-        Set<Tuple> common = conn.zrevrangeWithScores("common:test:info", 0, -1);
+        List<Tuple> common = conn.zrevrangeWithScores("common:test:info", 0, -1);
         System.out.println("The current number of common messages is: " + common.size());
         System.out.println("Those common messages are:");
         for (Tuple tuple : common){
@@ -149,7 +153,7 @@ public class Chapter05 {
             timer.stop("req-" + i);
         }
         System.out.println("The slowest access times are:");
-        Set<Tuple> atimes = conn.zrevrangeWithScores("slowest:AccessTime", 0, -1);
+        List<Tuple> atimes = conn.zrevrangeWithScores("slowest:AccessTime", 0, -1);
         for (Tuple tuple : atimes){
             System.out.println("  " + tuple.getElement() + ", " + tuple.getScore());
         }
@@ -355,7 +359,7 @@ public class Chapter05 {
     public Map<String,Double> getStats(Jedis conn, String context, String type){
         String key = "stats:" + context + ':' + type;
         Map<String,Double> stats = new HashMap<String,Double>();
-        Set<Tuple> data = conn.zrangeWithScores(key, 0, -1);
+        List<Tuple> data = conn.zrangeWithScores(key, 0, -1);
         for (Tuple tuple : data){
             stats.put(tuple.getElement(), tuple.getScore());
         }
@@ -418,7 +422,7 @@ public class Chapter05 {
     public Jedis redisConnection(String component){
         Jedis configConn = REDIS_CONNECTIONS.get("config");
         if (configConn == null){
-            configConn = new Jedis("localhost");
+            configConn = new Jedis("redis://localhost:6379");
             configConn.select(15);
             REDIS_CONNECTIONS.put("config", configConn);
         }
@@ -428,7 +432,7 @@ public class Chapter05 {
         Map<String,Object> config = getConfig(configConn, "redis", component);
 
         if (!config.equals(oldConfig)){
-            Jedis conn = new Jedis("localhost");
+            Jedis conn = new Jedis("redis://localhost:6379");
             if (config.containsKey("db")){
                 conn.select(((Double)config.get("db")).intValue());
             }
@@ -519,7 +523,7 @@ public class Chapter05 {
 
     public String[] findCityByIp(Jedis conn, String ipAddress) {
         int score = ipToScore(ipAddress);
-        Set<String> results = conn.zrevrangeByScore("ip2cityid:", score, 0, 0, 1);
+        List<String> results = conn.zrevrangeByScore("ip2cityid:", score, 0, 0, 1);
         if (results.size() == 0) {
             return null;
         }
@@ -538,7 +542,7 @@ public class Chapter05 {
         private long timeOffset; // used to mimic a time in the future.
 
         public CleanCountersThread(int sampleCount, long timeOffset){
-            this.conn = new Jedis("localhost");
+            this.conn = new Jedis("redis://localhost:6379");
             this.conn.select(15);
             this.sampleCount = sampleCount;
             this.timeOffset = timeOffset;
@@ -554,7 +558,7 @@ public class Chapter05 {
                 long start = System.currentTimeMillis() + timeOffset;
                 int index = 0;
                 while (index < conn.zcard("known:")){
-                    Set<String> hashSet = conn.zrange("known:", index, index);
+                    List<String> hashSet = conn.zrange("known:", index, index);
                     index++;
                     if (hashSet.size() == 0) {
                         break;

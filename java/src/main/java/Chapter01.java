@@ -1,5 +1,5 @@
 import redis.clients.jedis.Jedis;
-import redis.clients.jedis.ZParams;
+import redis.clients.jedis.params.ZParams;
 
 import java.util.*;
 
@@ -13,7 +13,7 @@ public class Chapter01 {
     }
 
     public void run() {
-        Jedis conn = new Jedis("localhost");
+        Jedis conn = new Jedis("redis://localhost:6379");
         conn.select(15);
 
         String articleId = postArticle(
@@ -88,7 +88,7 @@ public class Chapter01 {
         int start = (page - 1) * ARTICLES_PER_PAGE;
         int end = start + ARTICLES_PER_PAGE - 1;
 
-        Set<String> ids = conn.zrevrange(order, start, end);
+        List<String> ids = conn.zrevrange(order, start, end);
         List<Map<String,String>> articles = new ArrayList<Map<String,String>>();
         for (String id : ids){
             Map<String,String> articleData = conn.hgetAll(id);

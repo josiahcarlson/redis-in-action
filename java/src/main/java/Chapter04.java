@@ -1,7 +1,7 @@
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.Transaction;
-import redis.clients.jedis.Tuple;
+import redis.clients.jedis.resps.Tuple;
 
 import java.lang.reflect.Method;
 import java.util.List;
@@ -14,7 +14,7 @@ public class Chapter04 {
     }
 
     public void run() {
-        Jedis conn = new Jedis("localhost");
+        Jedis conn = new Jedis("redis://localhost:6379");
         conn.select(15);
 
         testListItem(conn, false);
@@ -44,7 +44,7 @@ public class Chapter04 {
         boolean l = listItem(conn, item, seller, 10);
         System.out.println("Listing the item succeeded? " + l);
         assert l;
-        Set<Tuple> r = conn.zrangeWithScores("market:", 0, -1);
+        List<Tuple> r = conn.zrangeWithScores("market:", 0, -1);
         System.out.println("The market contains:");
         for (Tuple tuple : r){
             System.out.println("  " + tuple.getElement() + ", " + tuple.getScore());
@@ -201,7 +201,6 @@ public class Chapter04 {
     public void updateTokenPipeline(Jedis conn, String token, String user, String item) {
         long timestamp = System.currentTimeMillis() / 1000;
         Pipeline pipe = conn.pipelined();
-        pipe.multi();
         pipe.hset("login:", token, user);
         pipe.zadd("recent:", timestamp, token);
         if (item != null){
@@ -209,6 +208,6 @@ public class Chapter04 {
             pipe.zremrangeByRank("viewed:" + token, 0, -26);
             pipe.zincrby("viewed:", -1, item);
         }
-        pipe.exec();
+        pipe.sync();
     }
 }

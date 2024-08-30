@@ -13,7 +13,7 @@ repositories {
 
 dependencies {
 
-    compile 'redis.clients:jedis:2.1.0'
+    compile 'redis.clients:jedis:4.3.2'
     compile 'org.javatuples:javatuples:1.2'
     compile 'com.google.code.gson:gson:2.2.2'
 
