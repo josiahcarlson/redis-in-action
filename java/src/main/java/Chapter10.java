@@ -23,7 +23,8 @@ public class Chapter10 {
     private static volatile JedisPool configConnection;
 
     private static final Gson GSON = new Gson();
-    private static final Type MAP_TYPE = new TypeToken<Map<String, Object>>() {}.getType();
+    private static final Type MAP_TYPE = new TypeToken<Map<String, Object>>() {
+    }.getType();
 
     private static final ConcurrentHashMap<String, Long> EXPECTED =
             new ConcurrentHashMap<String, Long>();
@@ -63,179 +64,179 @@ public class Chapter10 {
     }
 
 
-        public static void main(String[] args) throws Exception {
-            new Chapter10().run();
+    public static void main(String[] args) throws Exception {
+        new Chapter10().run();
+    }
+
+    public void run() throws Exception {
+        Jedis conn = new Jedis("localhost");
+        conn.select(15);
+
+        conn.flushDB();
+
+        seedRedisConfigs(conn);
+
+        JedisPool configPool = new JedisPool(new JedisPoolConfig(), "127.0.0.1", 6379, 2000, null, 15);
+        Chapter10.setConfigConnection(configPool);
+
+        Chapter10 ch10 = new Chapter10();
+
+        testCountVisit(conn);
+        testSearchAndSort(conn, ch10);
+        testFollowUser(conn, ch10);
+        testDelayedTasks(conn, ch10);
+
+        System.out.println("\nALL TESTS DONE.");
+    }
+
+    private void seedRedisConfigs(Jedis conn) {
+        System.out.println("\n----- seedRedisConfigs -----");
+
+        String json = "{\"host\":\"127.0.0.1\",\"port\":6379,\"db\":15,\"timeoutMillis\":2000}";
+
+        conn.set("config:redis:default", json);
+        conn.set("config:redis:unique", json);
+
+        for (int i = 0; i < 16; i++) {
+            conn.set("config:redis:unique:" + i, json);
         }
 
-        public void run() throws Exception {
-            Jedis conn = new Jedis("localhost");
-            conn.select(15);
-
-            conn.flushDB();
-
-            seedRedisConfigs(conn);
-
-            JedisPool configPool = new JedisPool(new JedisPoolConfig(), "127.0.0.1", 6379, 2000, null, 15);
-            Chapter10.setConfigConnection(configPool);
-
-            Chapter10 ch10 = new Chapter10();
-
-            testCountVisit(conn);
-            testSearchAndSort(conn, ch10);
-            testFollowUser(conn, ch10);
-            testDelayedTasks(conn, ch10);
-
-            System.out.println("\nALL TESTS DONE.");
+        for (int i = 0; i < 8; i++) {
+            conn.set("config:redis:timelines:" + i, json);
         }
 
-        private void seedRedisConfigs(Jedis conn) {
-            System.out.println("\n----- seedRedisConfigs -----");
-
-            String json = "{\"host\":\"127.0.0.1\",\"port\":6379,\"db\":15,\"timeoutMillis\":2000}";
-
-            conn.set("config:redis:default", json);
-            conn.set("config:redis:unique", json);
-
-            for (int i = 0; i < 16; i++) {
-                conn.set("config:redis:unique:" + i, json);
-            }
-
-            for (int i = 0; i < 8; i++) {
-                conn.set("config:redis:timelines:" + i, json);
-            }
-
-            for (int i = 0; i < 16; i++) {
-                conn.set("config:redis:followers:" + i, json);
-            }
-
-            for (int i = 0; i < 16; i++) {
-                conn.set("config:redis:list:out:" + i, json);
-            }
-
-            System.out.println("seed done.");
+        for (int i = 0; i < 16; i++) {
+            conn.set("config:redis:followers:" + i, json);
         }
 
-        public void testCountVisit(Jedis conn) {
-            System.out.println("\n----- testCountVisit -----");
-
-            SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd'T'HH:00:00");
-            fmt.setTimeZone(TimeZone.getTimeZone("UTC"));
-            String key = "unique:" + fmt.format(new Date());
-
-            conn.del(key);
-
-            String sessionId = UUID.randomUUID().toString();
-            Chapter10.countVisit(sessionId);
-
-            String v = conn.get(key);
-            System.out.println("unique key: " + key + " => " + v);
-            assert v != null && Long.parseLong(v) >= 1L;
+        for (int i = 0; i < 16; i++) {
+            conn.set("config:redis:list:out:" + i, json);
         }
 
-        public void testSearchAndSort(Jedis conn, Chapter10 ch10) {
-            System.out.println("\n----- testSearchAndSort -----");
+        System.out.println("seed done.");
+    }
 
-            conn.del("idx:foo");
-            conn.del("kb:doc:1", "kb:doc:2", "kb:doc:3");
+    public void testCountVisit(Jedis conn) {
+        System.out.println("\n----- testCountVisit -----");
 
-            conn.hset("kb:doc:1", "updated", "100");
-            conn.hset("kb:doc:1", "title", "b-title");
+        SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd'T'HH:00:00");
+        fmt.setTimeZone(TimeZone.getTimeZone("UTC"));
+        String key = "unique:" + fmt.format(new Date());
 
-            conn.hset("kb:doc:2", "updated", "300");
-            conn.hset("kb:doc:2", "title", "a-title");
+        conn.del(key);
 
-            conn.hset("kb:doc:3", "updated", "200");
-            conn.hset("kb:doc:3", "title", "c-title");
+        String sessionId = UUID.randomUUID().toString();
+        Chapter10.countVisit(sessionId);
 
-            conn.sadd("idx:foo", "1", "2", "3");
+        String v = conn.get(key);
+        System.out.println("unique key: " + key + " => " + v);
+        assert v != null && Long.parseLong(v) >= 1L;
+    }
 
-            Chapter10.SearchResult r1 = ch10.searchAndSort(conn, "foo", "updated");
-            System.out.println("sort=updated => " + r1.docids);
-            assert r1.docids.size() == 3;
-            assert "1".equals(r1.docids.get(0));
-            assert "3".equals(r1.docids.get(1));
-            assert "2".equals(r1.docids.get(2));
+    public void testSearchAndSort(Jedis conn, Chapter10 ch10) {
+        System.out.println("\n----- testSearchAndSort -----");
 
-            Chapter10.SearchResult r2 = ch10.searchAndSort(conn, "foo", "title");
-            System.out.println("sort=title => " + r2.docids);
-            assert r2.docids.size() == 3;
-            assert "2".equals(r2.docids.get(0));
-            assert "1".equals(r2.docids.get(1));
-            assert "3".equals(r2.docids.get(2));
+        conn.del("idx:foo");
+        conn.del("kb:doc:1", "kb:doc:2", "kb:doc:3");
 
-            Chapter10.SearchResult r3 = ch10.searchAndSort(conn, "foo", "-updated");
-            System.out.println("sort=-updated => " + r3.docids);
-            assert r3.docids.size() == 3;
-            assert "2".equals(r3.docids.get(0));
-            assert "3".equals(r3.docids.get(1));
-            assert "1".equals(r3.docids.get(2));
+        conn.hset("kb:doc:1", "updated", "100");
+        conn.hset("kb:doc:1", "title", "b-title");
+
+        conn.hset("kb:doc:2", "updated", "300");
+        conn.hset("kb:doc:2", "title", "a-title");
+
+        conn.hset("kb:doc:3", "updated", "200");
+        conn.hset("kb:doc:3", "title", "c-title");
+
+        conn.sadd("idx:foo", "1", "2", "3");
+
+        Chapter10.SearchResult r1 = ch10.searchAndSort(conn, "foo", "updated");
+        System.out.println("sort=updated => " + r1.docids);
+        assert r1.docids.size() == 3;
+        assert "1".equals(r1.docids.get(0));
+        assert "3".equals(r1.docids.get(1));
+        assert "2".equals(r1.docids.get(2));
+
+        Chapter10.SearchResult r2 = ch10.searchAndSort(conn, "foo", "title");
+        System.out.println("sort=title => " + r2.docids);
+        assert r2.docids.size() == 3;
+        assert "2".equals(r2.docids.get(0));
+        assert "1".equals(r2.docids.get(1));
+        assert "3".equals(r2.docids.get(2));
+
+        Chapter10.SearchResult r3 = ch10.searchAndSort(conn, "foo", "-updated");
+        System.out.println("sort=-updated => " + r3.docids);
+        assert r3.docids.size() == 3;
+        assert "2".equals(r3.docids.get(0));
+        assert "3".equals(r3.docids.get(1));
+        assert "1".equals(r3.docids.get(2));
+    }
+
+    public void testFollowUser(Jedis conn, Chapter10 ch10) {
+        System.out.println("\n----- testFollowUser -----");
+
+        long uid = 1001L;
+        long otherUid = 2002L;
+
+        conn.del("following:" + uid);
+        conn.del("followers:" + otherUid);
+        conn.del("user:" + uid);
+        conn.del("user:" + otherUid);
+
+        String pkey = "profile:" + otherUid;
+        String hkey = "home:" + uid;
+        conn.del(pkey);
+        conn.del(hkey);
+
+        double now = System.currentTimeMillis() / 1000.0;
+        conn.zadd(pkey, now - 10, "status:1");
+        conn.zadd(pkey, now - 5, "status:2");
+
+        boolean ok = ch10.followUser(conn, uid, otherUid);
+        System.out.println("followUser => " + ok);
+        assert ok;
+
+        Set<Tuple> home = conn.zrevrangeWithScores(hkey, 0, -1);
+        System.out.println("home timeline => " + tuplesToElements(home));
+        assert home != null && home.size() >= 2;
+
+        List<String> elems = tuplesToElements(home);
+        assert elems.contains("status:1");
+        assert elems.contains("status:2");
+    }
+
+    public void testDelayedTasks(Jedis conn, Chapter10 ch10) throws Exception {
+        System.out.println("\n----- testDelayedTasks -----");
+
+        conn.del("delayed:");
+        conn.del("queue:default");
+
+        Chapter10.PollQueueThread t = ch10.new PollQueueThread();
+        t.start();
+
+        List<String> args = new ArrayList<String>();
+        args.add("hello");
+        String id = ch10.executeLater(conn, "default", "test_task", args, 200);
+        System.out.println("scheduled id => " + id);
+
+        Thread.sleep(800);
+
+        long qlen = conn.llen("queue:default");
+        System.out.println("queue:default len => " + qlen);
+        assert qlen >= 1;
+
+        t.quitThread();
+        t.join(1000);
+    }
+
+    private List<String> tuplesToElements(Set<Tuple> tuples) {
+        List<String> out = new ArrayList<String>();
+        if (tuples == null) return out;
+        for (Tuple t : tuples) {
+            out.add(t.getElement());
         }
-
-        public void testFollowUser(Jedis conn, Chapter10 ch10) {
-            System.out.println("\n----- testFollowUser -----");
-
-            long uid = 1001L;
-            long otherUid = 2002L;
-
-            conn.del("following:" + uid);
-            conn.del("followers:" + otherUid);
-            conn.del("user:" + uid);
-            conn.del("user:" + otherUid);
-
-            String pkey = "profile:" + otherUid;
-            String hkey = "home:" + uid;
-            conn.del(pkey);
-            conn.del(hkey);
-
-            double now = System.currentTimeMillis() / 1000.0;
-            conn.zadd(pkey, now - 10, "status:1");
-            conn.zadd(pkey, now - 5, "status:2");
-
-            boolean ok = ch10.followUser(conn, uid, otherUid);
-            System.out.println("followUser => " + ok);
-            assert ok;
-
-            Set<Tuple> home = conn.zrevrangeWithScores(hkey, 0, -1);
-            System.out.println("home timeline => " + tuplesToElements(home));
-            assert home != null && home.size() >= 2;
-
-            List<String> elems = tuplesToElements(home);
-            assert elems.contains("status:1");
-            assert elems.contains("status:2");
-        }
-
-        public void testDelayedTasks(Jedis conn, Chapter10 ch10) throws Exception {
-            System.out.println("\n----- testDelayedTasks -----");
-
-            conn.del("delayed:");
-            conn.del("queue:default");
-
-            Chapter10.PollQueueThread t = ch10.new PollQueueThread();
-            t.start();
-
-            List<String> args = new ArrayList<String>();
-            args.add("hello");
-            String id = ch10.executeLater(conn, "default", "test_task", args, 200);
-            System.out.println("scheduled id => " + id);
-
-            Thread.sleep(800);
-
-            long qlen = conn.llen("queue:default");
-            System.out.println("queue:default len => " + qlen);
-            assert qlen >= 1;
-
-            t.quitThread();
-            t.join(1000);
-        }
-
-        private List<String> tuplesToElements(Set<Tuple> tuples) {
-            List<String> out = new ArrayList<String>();
-            if (tuples == null) return out;
-            for (Tuple t : tuples) {
-                out.add(t.getElement());
-            }
-            return out;
-        }
+        return out;
+    }
 
 
     private static void returnJedis(JedisPool pool, Jedis jedis) {
@@ -572,14 +573,7 @@ public class Chapter10 {
         return searchAndSort(conn, queryStringString, null, 300, sort, 0, 20);
     }
 
-    public SearchResult searchAndSort(Jedis conn,
-                                      String queryStringString,
-                                      String id,
-                                      int ttl,
-                                      String sort,
-                                      int start,
-                                      int num) {
-
+    public SearchResult searchAndSort(Jedis conn, String queryStringString, String id, int ttl, String sort, int start, int num) {
         boolean desc = sort.startsWith("-");
         if (desc) sort = sort.substring(1);
 
@@ -777,16 +771,7 @@ public class Chapter10 {
                 new ArrayList<String>((Set<String>) results.get(results.size() - 1)));
     }
 
-    public SearchResult searchAndZsort(Jedis conn,
-                                       String queryStringString,
-                                       String id,
-                                       int ttl,
-                                       int update,
-                                       int vote,
-                                       int start,
-                                       int num,
-                                       boolean desc) {
-
+    public SearchResult searchAndZsort(Jedis conn, String queryStringString, String id, int ttl, int update, int vote, int start, int num, boolean desc) {
         String baseId = (id != null) ? id : parseAndSearch(conn, queryStringString, ttl);
         if (baseId == null) {
             return new SearchResult(null, 0L, Collections.<String>emptyList());
@@ -816,16 +801,7 @@ public class Chapter10 {
         return new SearchResult(zsetId, count, new ArrayList<String>(docidSet));
     }
 
-    public SearchZsetValuesResult searchGetZsetValues(Jedis conn,
-                                                      String query,
-                                                      String id,
-                                                      int ttl,
-                                                      int update,
-                                                      int vote,
-                                                      int start,
-                                                      int num,
-                                                      boolean desc) {
-
+    public SearchZsetValuesResult searchGetZsetValues(Jedis conn, String query, String id, int ttl, int update, int vote, int start, int num, boolean desc) {
         SearchResult sr = searchAndZsort(conn, query, id, ttl, update, vote, 0, 1, desc);
 
         String zkey = "idx:" + sr.id;
@@ -840,18 +816,7 @@ public class Chapter10 {
         return new SearchZsetValuesResult(sr.count, data, sr.id);
     }
 
-    public SearchShardsZsetResult searchShardsZset(String component,
-                                                   int shards,
-                                                   String query,
-                                                   List<String> ids,
-                                                   int ttl,
-                                                   int update,
-                                                   int vote,
-                                                   int start,
-                                                   int num,
-                                                   boolean desc,
-                                                   int wait) {
-
+    public SearchShardsZsetResult searchShardsZset(String component, int shards, String query, List<String> ids, int ttl, int update, int vote, int start, int num, boolean desc, int wait) {
         long count = 0;
         List<Tuple> data = new ArrayList<Tuple>();
 
