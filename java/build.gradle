@@ -24,4 +24,6 @@ dependencies {
 //set the main class from the command line property 'mainClass' (e.g. gradle -PmainClass=Chapter02)
 def chapterPrefix = 'Chapter0'
 def defaultChapter = '1'
-mainClassName = chapterPrefix + (project.hasProperty('chapter') ? chapter  : defaultChapter)
+def ch = (project.hasProperty('chapter') ? chapter : defaultChapter).toString()
+mainClassName = (ch.toInteger() < 10 ? 'Chapter0' : 'Chapter') + ch
+
