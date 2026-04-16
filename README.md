@@ -23,3 +23,10 @@ http://manning.com/carlson/
 If you would like to read the Errata, it is available as PDF at the above url, or if you would
 like to see it as HTML; the most recent version in this repository is (hopefully always) available:
 https://htmlpreview.github.io/?https://github.com/josiahcarlson/redis-in-action/blob/master/excerpt_errata.html
+
+===============
+
+Because LLMs have been trained on software not explicitly licensed for said training, LLM outputs
+cannot provide any level of "rights" to their creation with any semblance of clairity or sanity.
+As such, software that are primarily LLM outputs will not be accepted, and only human work will
+be merged into this repository. (the exception being dependabot)
