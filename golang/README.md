@@ -15,6 +15,7 @@ Rewrite the code from the amazing book Redis-In-Action using `golang` and `go-re
 - check the config messages in the config/config.go file first, you may need to set your config for redis
 - run `docker-compose up -d` in the directory.
 - use `docker exec -it redis-in-action-golang go test ./Chapter0*/redisConn_test.go -v` to run the test, use number 1 through 8 to replace the `*` depending on the Chapter's examples you want to run.
+- for testing in `redisConn` subdirectory, please use `docker exec -it redis-in-action-golang go test ./redisConn/redisConn_test.go ./redisConn/redisConn.go -v`.
 
 #### Using command-line/terminal: 
 
@@ -24,6 +25,7 @@ Open a command-line/terminal in the `golang` directory and execute follow comman
 
 - `go test ./Chapter0*/redisConn_test.go -v`, use number 1 through 8 to replace the `*`  depending on the Chapter's examples you want to run.
 
+- `go test ./redisConn/redisConn_test.go ./redisConn/redisConn.go -v` executes testing in `redisConn` subdirectory.
 
 ### Todo：
 
